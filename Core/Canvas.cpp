@@ -12,6 +12,7 @@
 
 void Canvas::Update()
 {
+
 }
 
 void Canvas::OnGUI()
@@ -24,7 +25,8 @@ void Canvas::OnGUI()
 	{
 		for (size_t i = 0; i < m_pointSelection.size(); ++i)
 		{
-			ImGui::DragFloat2("Position", &m_points[m_pointSelection[i]].coord.x);
+			std::string label = "Position##" + std::to_string(i);
+			ImGui::DragFloat2(label.c_str(), &m_points[m_pointSelection[i]].coord.x);
 		}
 	}
 }
@@ -34,7 +36,7 @@ void Canvas::DrawTo(sf::RenderTarget& m_target)
 	for (auto& connectPair : m_connections)
 	{
 		Line line = connectPair.second;
-
+		line.PositionVisual(m_points[line.connection.a].coord, m_points[line.connection.b].coord);
 		m_target.draw(line.visual);
 	}
 
@@ -43,7 +45,7 @@ void Canvas::DrawTo(sf::RenderTarget& m_target)
 		for (auto& pointPair : m_points)
 		{
 			Point& point = pointPair.second;
-
+			point.visual.setPosition(point.coord);
 			m_target.draw(point.visual);
 		}
 	}

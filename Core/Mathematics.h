@@ -6,6 +6,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
+#include <imgui.h>
 
 namespace xe
 {
@@ -50,6 +51,10 @@ namespace xe
 		Vector2(const sf::Vector2f& other) : x(other.x), y(other.y) {}						// **EDIT** Added for SFML Compatibility
 		Vector2(const sf::Vector2i& other) : x(other.x), y(other.y) {}						// **EDIT** Added for SFML Compatibility
 		Vector2(const sf::Vector2u& other) : x(other.x), y(other.y) {}						// **EDIT** Added for SFML Compatibility
+
+		operator ImVec2() const { return { x, y }; };										// **EDIT** Added for SFML Compatibility
+		Vector2& operator=(const ImVec2& rhs) { x = rhs.x; y = rhs.y; return *this; }		// **EDIT** Added for SFML Compatibility
+		Vector2(const ImVec2& other) : x(other.x), y(other.y) {}							// **EDIT** Added for SFML Compatibility
 	};
 	//----------------------------------------------------------------------------------------------------
 
