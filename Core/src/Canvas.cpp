@@ -1,5 +1,6 @@
 #include "Canvas.h"
 
+#include "App.h"
 #include "Algorithms.h"
 #include "Message.h"
 
@@ -25,8 +26,7 @@ void Canvas::OnGUI()
 	{
 		for (size_t i = 0; i < m_pointSelection.size(); ++i)
 		{
-			std::string label = "Position##" + std::to_string(i);
-			ImGui::DragFloat2(label.c_str(), &m_points[m_pointSelection[i]].coord.x);
+			GUIPointPosition(m_pointSelection[i]);
 		}
 	}
 }
@@ -176,4 +176,33 @@ void Canvas::TrySelect(const sf::Vector2f pos, const ClickModifier mod)
 	}
 
 	m_pointSelection.erase(iter);
+}
+
+void Canvas::GUIPointPosition(uint32_t id)
+{
+	std::string label = "Position##" + std::to_string(id);
+	Point& point = m_points[id];
+	sf::Vector2f val = point.coord;
+		ImGui::DragFloat2(label.c_str(), &point.coord.x);
+	if (ImGui::IsItemClicked())
+	{
+		m_inspectorCommand = std::make_unique<xe::Command>();
+		m_inspectorCommand->revert = [this, id, val]() {m_points[id].coord = val; };
+	}
+	if (ImGui::IsItemDeactivatedAfterEdit())
+	{
+		if (m_inspectorCommand == nullptr)
+		{
+			Message::ErrorNotice("Inspector command buffer instance not valid.");
+			return;
+		}
+		val = point.coord;
+		m_inspectorCommand->execute = [this, id, val]() { m_points[id].coord = val; };
+		App::Do(*m_inspectorCommand);
+		m_inspectorCommand = nullptr;
+	}
+	else if (ImGui::IsItemDeactivated())
+	{
+		m_inspectorCommand = nullptr;
+	}
 }

@@ -2,6 +2,8 @@
 
 #include "Canvas.h"
 
+#include <XephTools/CommandStack.h>
+
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 #include <SFML/Window.hpp>
@@ -26,15 +28,23 @@ public:
     static void Update();
     static void Shutdown();
 
+    static void Do(const xe::Command& cmd);
+    static void Do(const std::function<void(void)>& execute, const std::function<void(void)>& revert);
+
 private:
     void _Start();
     void _Update();
     void _Shutdown();
 
+    void _Undo();
+    void _Redo();
+
 private:
     std::unique_ptr<sf::RenderWindow> window;
     std::unique_ptr<sf::RenderTexture> viewport;
     std::unique_ptr<Canvas> canvas;
+
+    xe::CommandStack m_cmdStack;
 
     sf::ContextSettings windowCtx;
     sf::Clock deltaClock;

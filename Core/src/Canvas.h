@@ -5,9 +5,13 @@
 
 #include <SFML/Graphics.hpp>
 
+#include <XephTools/CommandStack.h>
+
 #include <filesystem>
+#include <memory>
 #include <unordered_map>
 #include <vector>
+
 
 class Canvas
 {
@@ -50,10 +54,13 @@ public:
 	void TrySelect(const sf::Vector2f pos, const ClickModifier mod = ClickModifier::Primary);
 
 private:
+	void GUIPointPosition(uint32_t id);
+
 	std::unordered_map<uint32_t, Point> m_points;
 	std::unordered_map<uint32_t, Line> m_connections;
 
 	std::vector<uint32_t> m_pointSelection;
+	std::unique_ptr<xe::Command> m_inspectorCommand = nullptr;
 
 	bool m_showPoints = true;
 };

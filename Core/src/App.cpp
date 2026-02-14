@@ -43,6 +43,16 @@ void App::Shutdown()
 	s_inst = nullptr;
 }
 
+void App::Do(const xe::Command& cmd)
+{
+    s_inst->m_cmdStack.PushAndExecute(cmd);
+}
+
+void App::Do(const std::function<void(void)>& execute, const std::function<void(void)>& revert)
+{
+    s_inst->m_cmdStack.PushAndExecute(execute, revert);
+}
+
 void App::_Start()
 {
     windowCtx.antialiasingLevel = 8;
@@ -97,6 +107,18 @@ void App::_Update()
             if (event.type == sf::Event::MouseWheelScrolled)
             {
                 scrollDelta = event.mouseWheelScroll.delta;
+            }
+
+            if (event.type == sf::Event::KeyPressed && sf::Keyboard::isKeyPressed(sf::Keyboard::LControl))
+            {
+                if (event.key.code == sf::Keyboard::Key::Z)
+                {
+                    _Undo();
+                }
+                else if (event.key.code == sf::Keyboard::Key::Y)
+                {
+                    _Redo();
+                }
             }
         }
 
@@ -187,4 +209,21 @@ void App::_Update()
 void App::_Shutdown()
 {
     ImGui::SFML::Shutdown();
+}
+
+void App::_Undo()
+{
+    try
+    {
+        m_cmdStack.Undo();
+    }
+    catch (std::exception e)
+    {
+        Message::ErrorNotice(std::string("Error while trying to undo: ") + e.what());
+    }
+}
+
+void App::_Redo()
+{
+    m_cmdStack.Redo();
 }

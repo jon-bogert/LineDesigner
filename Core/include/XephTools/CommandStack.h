@@ -37,7 +37,7 @@ namespace xe
 			if (!IsEmpty() && m_cursorIndex != m_stack.size() - 1)
 				index = m_cursorIndex + 1;
 
-			if (index == m_bottomIndex && !IsEmpty()) // Check increase `bottomIndex`, but not if empty
+			if (index == m_bottomIndex && m_cursorIndex == m_topIndex && !IsEmpty()) // Check increase `bottomIndex`, but not if empty
 				m_bottomIndex = (m_bottomIndex == m_stack.size() - 1) ? 0 : m_bottomIndex + 1;
 
 			m_stack[index] = cmd;
@@ -52,7 +52,7 @@ namespace xe
 			if (!IsEmpty() && m_cursorIndex != m_stack.size() - 1)
 				index = m_cursorIndex + 1;
 
-			if (index == m_bottomIndex && !IsEmpty()) // Check increase `bottomIndex`, but not if empty
+			if (index == m_bottomIndex && m_cursorIndex == m_topIndex && !IsEmpty()) // Check increase `bottomIndex`, but not if empty
 				m_bottomIndex = (m_bottomIndex == m_stack.size() - 1) ? 0 : m_bottomIndex + 1;
 
 			m_topIndex = m_cursorIndex = index;
