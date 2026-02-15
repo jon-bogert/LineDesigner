@@ -6,10 +6,16 @@
 
 #include <yaml-cpp/yaml.h>
 #include <imgui.h>
+#include <stb_image_write.h>
 
 #include <fstream>
 
 #define nullid UINT32_MAX
+
+void Canvas::Initialize()
+{
+
+}
 
 void Canvas::Update()
 {
@@ -35,9 +41,9 @@ void Canvas::OnGUI()
 	}
 }
 
-void Canvas::DrawTo(sf::RenderTarget& m_target)
+void Canvas::DrawTo(sf::RenderTarget& target)
 {
-	LineDrawContext ctx(this, &m_target);
+	LineDrawContext ctx(this, &target);
 	m_connections.ForEach(DrawLineCallback, (void*)&ctx);
 
 	if (m_showPoints)
@@ -45,8 +51,18 @@ void Canvas::DrawTo(sf::RenderTarget& m_target)
 		for (auto& pointPair : m_points)
 		{
 			Point& point = pointPair.second;
+			point.visual.setFillColor(m_pointColorDefault);
 			point.visual.setPosition(point.coord);
-			m_target.draw(point.visual);
+		}
+
+		for (uint32_t id : m_pointSelection)
+		{
+			m_points[id].visual.setFillColor((id == m_pointSelection[0]) ? m_pointColorPrimary : m_pointColorSecondary);
+		}
+
+		for (auto& pointPair : m_points)
+		{
+			target.draw(pointPair.second.visual);
 		}
 	}
 }
@@ -154,6 +170,9 @@ void Canvas::NewPointCommand(const sf::Vector2f coord)
 	cmd.execute = [&, coord, id]() { AddPoint(coord, id); };
 
 	App::Exec(cmd);
+
+	m_pointSelection.resize(1);
+	m_pointSelection[0] = id;
 }
 
 void Canvas::RemovePointCommand(uint32_t id)
@@ -272,6 +291,25 @@ void Canvas::TryDelete()
 	}
 
 	RemoveSelectedPointsCommand();
+}
+
+void Canvas::TempExport()
+{
+	sf::RenderTexture tex;
+	sf::ContextSettings winCtx;
+	winCtx.antialiasingLevel = 8;
+	tex.create(512, 512, winCtx);
+	sf::View view = tex.getView();
+	view.setCenter({ 0, 0 });
+	tex.setView(view);
+
+	tex.clear({ 0,0,0,0 });
+	LineDrawContext ctx(this, &tex);
+	m_connections.ForEach(DrawLineCallback, (void*)&ctx);
+	tex.display();
+
+	sf::Image img = tex.getTexture().copyToImage();
+	stbi_write_png("arrow.png", 512, 512, 4, img.getPixelsPtr(), 512 * 4);
 }
 
 void Canvas::GUIPointPosition(uint32_t id)

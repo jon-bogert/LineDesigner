@@ -40,9 +40,10 @@ public:
 		Add,
 	};
 
+	void Initialize();
 	void Update();
 	void OnGUI();
-	void DrawTo(sf::RenderTarget& m_target);
+	void DrawTo(sf::RenderTarget& target);
 
 	void Load(const std::filesystem::path& path);
 
@@ -59,6 +60,8 @@ public:
 	void TrySelect(const sf::Vector2f pos, const ClickModifier mod = ClickModifier::Primary);
 	void TryDelete();
 
+	void TempExport();
+
 private:
 	void GUIPointPosition(uint32_t id);
 	void GUIConnectionBool(uint32_t idA, uint32_t idB);
@@ -74,4 +77,7 @@ private:
 
 	float m_lineWidth = 10.f;
 	bool m_showPoints = true;
+	sf::Color m_pointColorDefault = { 127, 127, 127 };
+	sf::Color m_pointColorPrimary = sf::Color::Red;
+	sf::Color m_pointColorSecondary = sf::Color::Yellow;
 };

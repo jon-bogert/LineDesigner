@@ -25,7 +25,8 @@ project "Core"
     {
         "%{prj.name}/include/ImGui",
         "%{prj.name}/include",
-        "%{prj.name}/src"
+        "%{prj.name}/src",
+        "%{prj.name}/ext"
     }
 
     defines

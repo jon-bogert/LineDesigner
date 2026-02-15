@@ -82,6 +82,7 @@ void App::_Start()
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     canvas = std::make_unique<Canvas>();
+    canvas->Initialize();
     canvas->Load("testcanvas.yaml");
 }
 
@@ -193,6 +194,10 @@ void App::_Update()
             if (ImGui::IsKeyPressed(ImGuiKey_Delete))
             {
                 canvas->TryDelete();
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_E))
+            {
+                canvas->TempExport();
             }
         }
 
