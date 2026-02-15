@@ -181,6 +181,12 @@ void App::_Update()
                 sf::Vector2f worldPos = viewport->mapPixelToCoords(windowPos);
                 canvas->TrySelect(worldPos, mod);
             }
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - lastViewportPosition;
+                sf::Vector2f worldPos = viewport->mapPixelToCoords(windowPos);
+                canvas->NewPointCommand(worldPos);
+            }
         }
 
         viewport->clear({ 10, 10, 10 });

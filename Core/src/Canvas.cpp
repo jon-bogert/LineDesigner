@@ -33,12 +33,8 @@ void Canvas::OnGUI()
 
 void Canvas::DrawTo(sf::RenderTarget& m_target)
 {
-	for (auto& connectPair : m_connections)
-	{
-		Line line = connectPair.second;
-		line.PositionVisual(m_points[line.connection.a].coord, m_points[line.connection.b].coord);
-		m_target.draw(line.visual);
-	}
+	LineDrawContext ctx(this, &m_target);
+	m_connections.ForEach(DrawLineCallback, (void*)&ctx);
 
 	if (m_showPoints)
 	{
@@ -91,11 +87,9 @@ void Canvas::Load(const std::filesystem::path& path)
 	{
 		for (const YAML::Node& connection : root["connections"])
 		{
-			uint32_t id = Algorithm::HexToUInt32(connection["id"].as<std::string>());
-			Connection connectionData;
-			connectionData.a = connection["data"][0].as<int>();
-			connectionData.b = connection["data"][1].as<int>();
-			AddNewConnection(connectionData, id);
+			uint32_t idA = connection["data"][0].as<int>();
+			uint32_t idB = connection["data"][1].as<int>();
+			AddConnection(idA, idB);
 		}
 	}
 }
@@ -115,16 +109,16 @@ uint32_t Canvas::AddNewPoint(const sf::Vector2f& coord, uint32_t id)
 	return id;
 }
 
-uint32_t Canvas::AddNewConnection(const Connection& connection, uint32_t id)
+void Canvas::AddConnection(const uint32_t idA, const uint32_t idB)
 {
-	id = (id == nullid) ? Algorithm::RandUInt32() : id;
+	m_connections.CreateConnection(idA, idB);
+}
 
-	Line& line = m_connections[id];
-	line.connection = connection;
-	line.PositionVisual(m_points[connection.a].coord, m_points[connection.b].coord);
-	line.visual.setFillColor(sf::Color::White);
-
-	return id;
+void Canvas::NewPointCommand(const sf::Vector2f coord)
+{
+	uint32_t id = Algorithm::RandUInt32();
+	xe::Command cmd;
+	Message::DebugLog("TODO - New Point");
 }
 
 void Canvas::TrySelect(const sf::Vector2f pos, const ClickModifier mod)
@@ -205,4 +199,17 @@ void Canvas::GUIPointPosition(uint32_t id)
 	{
 		m_inspectorCommand = nullptr;
 	}
+}
+
+void Canvas::DrawLineCallback(uint32_t idA, uint32_t idB, void* data)
+{
+	LineDrawContext& ctx = *(LineDrawContext*)data;
+	Canvas& self = *ctx.self;
+	LineShape* currLine = (ctx.index == self.m_lineBuffer.size()) ? currLine = &self.m_lineBuffer.emplace_back() : &self.m_lineBuffer[ctx.index];
+
+	currLine->SetParameters(self.m_points[idA].coord, self.m_points[idB].coord, self.m_lineWidth, 10);
+	currLine->setFillColor(sf::Color::White);
+
+	ctx.target->draw(*currLine);
+	ctx.index += 1;
 }

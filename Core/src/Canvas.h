@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Structs.h"
+#include "ConnectionGraph.h"
 #include "LineShape.h"
 
 #include <SFML/Graphics.hpp>
@@ -21,16 +21,14 @@ class Canvas
 		sf::CircleShape visual;
 	};
 
-	struct Line
+	struct LineDrawContext
 	{
-		Connection connection;
-		LineShape visual;
+		LineDrawContext() = default;
+		LineDrawContext(Canvas* self, sf::RenderTarget* target) : self(self), target(target), index(0) {}
 
-		void PositionVisual(const sf::Vector2f& a, const sf::Vector2f& b)
-		{
-			visual.SetParameters(a, b, 10, 10);
-			visual.setFillColor(sf::Color::White);
-		}
+		Canvas* self = nullptr;
+		sf::RenderTarget* target = nullptr;
+		size_t index = 0;
 	};
 
 public:
@@ -49,18 +47,22 @@ public:
 	void Load(const std::filesystem::path& path);
 
 	uint32_t AddNewPoint(const sf::Vector2f& coord, uint32_t id = UINT32_MAX);
-	uint32_t AddNewConnection(const Connection& connection, uint32_t id = UINT32_MAX);
+	void AddConnection(const uint32_t idA, const uint32_t idB);
+	void NewPointCommand(const sf::Vector2f coord);
 
 	void TrySelect(const sf::Vector2f pos, const ClickModifier mod = ClickModifier::Primary);
 
 private:
 	void GUIPointPosition(uint32_t id);
+	static void DrawLineCallback(uint32_t idA, uint32_t idB, void* data);
 
 	std::unordered_map<uint32_t, Point> m_points;
-	std::unordered_map<uint32_t, Line> m_connections;
+	ConnectionGraph m_connections;
+	std::vector<LineShape> m_lineBuffer;
 
 	std::vector<uint32_t> m_pointSelection;
 	std::unique_ptr<xe::Command> m_inspectorCommand = nullptr;
 
+	float m_lineWidth = 10.f;
 	bool m_showPoints = true;
 };
