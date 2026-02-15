@@ -28,8 +28,8 @@ public:
     static void Update();
     static void Shutdown();
 
-    static void Do(const xe::Command& cmd);
-    static void Do(const std::function<void(void)>& execute, const std::function<void(void)>& revert);
+    static void Exec(const xe::Command& cmd);
+    static void Exec(const std::function<void(void)>& execute, const std::function<void(void)>& revert);
 
 private:
     void _Start();

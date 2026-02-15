@@ -46,14 +46,23 @@ public:
 
 	void Load(const std::filesystem::path& path);
 
-	uint32_t AddNewPoint(const sf::Vector2f& coord, uint32_t id = UINT32_MAX);
+	uint32_t AddPoint(const sf::Vector2f& coord, uint32_t id = UINT32_MAX);
+	void RemovePoint(uint32_t id);
 	void AddConnection(const uint32_t idA, const uint32_t idB);
+	void AddMultipleConnections(const uint32_t idA, const std::unordered_set<uint32_t>& destIDs);
+	void RemoveConnection(const uint32_t idA, const uint32_t idB);
+
 	void NewPointCommand(const sf::Vector2f coord);
+	void RemovePointCommand(uint32_t id);
+	void RemoveSelectedPointsCommand();
 
 	void TrySelect(const sf::Vector2f pos, const ClickModifier mod = ClickModifier::Primary);
+	void TryDelete();
 
 private:
 	void GUIPointPosition(uint32_t id);
+	void GUIConnectionBool(uint32_t idA, uint32_t idB);
+
 	static void DrawLineCallback(uint32_t idA, uint32_t idB, void* data);
 
 	std::unordered_map<uint32_t, Point> m_points;

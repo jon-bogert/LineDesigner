@@ -43,12 +43,12 @@ void App::Shutdown()
 	s_inst = nullptr;
 }
 
-void App::Do(const xe::Command& cmd)
+void App::Exec(const xe::Command& cmd)
 {
     s_inst->m_cmdStack.PushAndExecute(cmd);
 }
 
-void App::Do(const std::function<void(void)>& execute, const std::function<void(void)>& revert)
+void App::Exec(const std::function<void(void)>& execute, const std::function<void(void)>& revert)
 {
     s_inst->m_cmdStack.PushAndExecute(execute, revert);
 }
@@ -186,6 +186,13 @@ void App::_Update()
                 xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - lastViewportPosition;
                 sf::Vector2f worldPos = viewport->mapPixelToCoords(windowPos);
                 canvas->NewPointCommand(worldPos);
+            }
+        }
+        if (ImGui::IsWindowFocused())
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+            {
+                canvas->TryDelete();
             }
         }
 

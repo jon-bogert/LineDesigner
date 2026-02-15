@@ -28,6 +28,10 @@ void Canvas::OnGUI()
 		{
 			GUIPointPosition(m_pointSelection[i]);
 		}
+		if (m_pointSelection.size() == 2)
+		{
+			GUIConnectionBool(m_pointSelection[0], m_pointSelection[1]);
+		}
 	}
 }
 
@@ -80,7 +84,7 @@ void Canvas::Load(const std::filesystem::path& path)
 			sf::Vector2f pointData;
 			pointData.x = point["data"][0].as<float>();
 			pointData.y = point["data"][1].as<float>();
-			AddNewPoint(pointData, id);
+			AddPoint(pointData, id);
 		}
 	}
 	if (root["connections"].IsDefined())
@@ -94,7 +98,7 @@ void Canvas::Load(const std::filesystem::path& path)
 	}
 }
 
-uint32_t Canvas::AddNewPoint(const sf::Vector2f& coord, uint32_t id)
+uint32_t Canvas::AddPoint(const sf::Vector2f& coord, uint32_t id)
 {
     id = (id == UINT32_MAX) ? Algorithm::RandUInt32() : id;
 
@@ -109,16 +113,100 @@ uint32_t Canvas::AddNewPoint(const sf::Vector2f& coord, uint32_t id)
 	return id;
 }
 
+void Canvas::RemovePoint(uint32_t id)
+{
+	if (m_connections.HasID(id))
+	{
+		ConnectionGraph::Node& node = m_connections[id];
+		for (const uint32_t dest : node.connections)
+		{
+			m_connections.RemoveConnection(id, dest);
+		}
+	}
+
+	m_points.erase(id);
+}
+
 void Canvas::AddConnection(const uint32_t idA, const uint32_t idB)
 {
 	m_connections.CreateConnection(idA, idB);
+}
+
+void Canvas::AddMultipleConnections(const uint32_t idA, const std::unordered_set<uint32_t>& destIDs)
+{
+	for (const uint32_t dest : destIDs)
+	{
+		m_connections.CreateConnection(idA, dest);
+	}
+}
+
+void Canvas::RemoveConnection(const uint32_t idA, const uint32_t idB)
+{
+	m_connections.RemoveConnection(idA, idB);
 }
 
 void Canvas::NewPointCommand(const sf::Vector2f coord)
 {
 	uint32_t id = Algorithm::RandUInt32();
 	xe::Command cmd;
-	Message::DebugLog("TODO - New Point");
+
+	cmd.revert = [&, id]() { RemovePoint(id); };
+	cmd.execute = [&, coord, id]() { AddPoint(coord, id); };
+
+	App::Exec(cmd);
+}
+
+void Canvas::RemovePointCommand(uint32_t id)
+{
+	xe::Command cmd;
+	sf::Vector2f coord = m_points[id].coord;
+	if (m_connections.HasID(id))
+	{
+		std::unordered_set<uint32_t>& connections = m_connections[id].connections;
+		cmd.revert = [this, connections, id, coord]
+			{
+				AddPoint(coord, id);
+				AddMultipleConnections(id, connections);
+			};
+	}
+	else
+	{
+		cmd.revert = [this, id, coord] { AddPoint(coord, id); };
+	}
+	cmd.execute = [&, id]() { RemovePoint(id); };
+
+	App::Exec(cmd);
+}
+
+void Canvas::RemoveSelectedPointsCommand()
+{
+	xe::Command cmd;
+	ConnectionGraph& connections = m_connections;
+	std::vector<uint32_t>& selection = m_pointSelection;
+	std::vector<sf::Vector2f> coords(selection.size());
+	for (size_t i = 0; i < selection.size(); ++i)
+	{
+		coords[i] = m_points[selection[i]].coord;
+	}
+
+	cmd.revert = [this, connections, selection, coords]()
+		{
+			for (size_t i = 0; i < selection.size(); ++i)
+			{
+				AddPoint(coords[i], selection[i]);
+			}
+			m_connections = connections;
+		};
+
+	cmd.execute = [this, selection]()
+		{
+			for (const uint32_t id : selection)
+			{
+				RemovePoint(id);
+			}
+		};
+
+	App::Exec(cmd);
 }
 
 void Canvas::TrySelect(const sf::Vector2f pos, const ClickModifier mod)
@@ -172,6 +260,20 @@ void Canvas::TrySelect(const sf::Vector2f pos, const ClickModifier mod)
 	m_pointSelection.erase(iter);
 }
 
+void Canvas::TryDelete()
+{
+	if (m_pointSelection.empty())
+		return;
+
+	if (m_pointSelection.size() == 1)
+	{
+		RemovePointCommand(m_pointSelection[0]);
+		return;
+	}
+
+	RemoveSelectedPointsCommand();
+}
+
 void Canvas::GUIPointPosition(uint32_t id)
 {
 	std::string label = "Position##" + std::to_string(id);
@@ -192,13 +294,34 @@ void Canvas::GUIPointPosition(uint32_t id)
 		}
 		val = point.coord;
 		m_inspectorCommand->execute = [this, id, val]() { m_points[id].coord = val; };
-		App::Do(*m_inspectorCommand);
+		App::Exec(*m_inspectorCommand);
 		m_inspectorCommand = nullptr;
 	}
 	else if (ImGui::IsItemDeactivated())
 	{
 		m_inspectorCommand = nullptr;
 	}
+}
+
+void Canvas::GUIConnectionBool(uint32_t idA, uint32_t idB)
+{
+	bool hasConnection = m_connections.HasConnection(idA, idB);
+	if (!ImGui::Checkbox("Points Connected", &hasConnection))
+		return;
+
+	xe::Command cmd;
+	if (hasConnection)
+	{
+		cmd.revert = [this, idA, idB]() { RemoveConnection(idA, idB); };
+		cmd.execute = [this, idA, idB]() { AddConnection(idA, idB); };
+	}
+	else
+	{
+		cmd.revert = [this, idA, idB]() { AddConnection(idA, idB); };
+		cmd.execute = [this, idA, idB]() { RemoveConnection(idA, idB); };
+	}
+
+	App::Exec(cmd);
 }
 
 void Canvas::DrawLineCallback(uint32_t idA, uint32_t idB, void* data)
