@@ -2,6 +2,7 @@
 
 #include "ConnectionGraph.h"
 #include "LineShape.h"
+#include "Gizmo.h"
 
 #include <SFML/Graphics.hpp>
 
@@ -75,8 +76,11 @@ private:
 	std::vector<uint32_t> m_pointSelection;
 	std::unique_ptr<xe::Command> m_inspectorCommand = nullptr;
 
+	Gizmo m_gizmo;
+
 	float m_lineWidth = 10.f;
 	bool m_showPoints = true;
+	bool m_useRelationSelect = false;
 	sf::Color m_pointColorDefault = { 127, 127, 127 };
 	sf::Color m_pointColorPrimary = sf::Color::Red;
 	sf::Color m_pointColorSecondary = sf::Color::Yellow;

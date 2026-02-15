@@ -14,7 +14,7 @@
 
 void Canvas::Initialize()
 {
-
+	m_gizmo.Initialize();
 }
 
 void Canvas::Update()
@@ -64,6 +64,22 @@ void Canvas::DrawTo(sf::RenderTarget& target)
 		{
 			target.draw(pointPair.second.visual);
 		}
+	}
+
+	if (m_pointSelection.size() == 1 || (m_pointSelection.size() == 2 && m_useRelationSelect))
+	{
+		m_gizmo.DrawTo(target, m_points[m_pointSelection.back()].coord);
+	}
+	else
+	{
+		sf::Vector2f average{};
+		for (size_t i = 0; i < m_pointSelection.size(); ++i)
+		{
+			average += m_points[m_pointSelection[i]].coord;
+		}
+
+		average /= (float)m_pointSelection.size();
+		m_gizmo.DrawTo(target, average);
 	}
 }
 
@@ -137,6 +153,8 @@ void Canvas::RemovePoint(uint32_t id)
 		for (const uint32_t dest : node.connections)
 		{
 			m_connections.RemoveConnection(id, dest);
+			if (!m_connections.HasID(id))
+				break;
 		}
 	}
 
@@ -265,10 +283,12 @@ void Canvas::TrySelect(const sf::Vector2f pos, const ClickModifier mod)
 	{
 		m_pointSelection.resize(2);
 		m_pointSelection[1] = toSelect;
+		m_useRelationSelect = true;
 		return;
 	}
 
 	// Add
+	m_useRelationSelect = false;
 	auto iter = std::find(m_pointSelection.begin(), m_pointSelection.end(), toSelect);
 	if (iter == m_pointSelection.end())
 	{
