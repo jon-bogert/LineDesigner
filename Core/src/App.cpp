@@ -125,6 +125,42 @@ void App::_Update()
 
         ImGui::SFML::Update(*window, deltaClock.restart());
         ImGui::DockSpaceOverViewport();
+        ImGui::BeginMainMenuBar();
+        if (ImGui::BeginMenu("File"))
+        {
+            if (ImGui::MenuItem("New", "Ctrl+N"))
+            {
+                // Handle New
+            }
+
+            if (ImGui::MenuItem("Open...", "Ctrl+O"))
+            {
+                // Handle Open
+            }
+
+            if (ImGui::MenuItem("Save", "Ctrl+S"))
+            {
+                // Handle Save
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Export", "Ctrl+E"))
+            {
+
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Exit"))
+            {
+                // Handle Exit (set a flag, don't close immediately)
+            }
+
+            ImGui::EndMenu();
+        }
+        
+        ImGui::EndMainMenuBar();
 
         ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoCollapse);
         ImVec2 availSize = ImGui::GetContentRegionAvail();

@@ -12,6 +12,9 @@ public:
 	void SetCapVertexCount(const uint32_t count);
 	void SetParameters(const sf::Vector2f& start, const sf::Vector2f& end, const float width, const uint32_t capVertCount);
 
+	sf::Vector2f GetStart() const { return m_start; }
+	sf::Vector2f GetEnd() const { return m_end; }
+
 	[[nodiscard]] std::size_t getPointCount() const override { return m_points.size(); }
 	[[nodiscard]] sf::Vector2f getPoint(std::size_t index) const override { return m_points[index]; }
 
