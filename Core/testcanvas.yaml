@@ -1,7 +1,8 @@
+version: 0
 points:
  - id: 1
    data: [0, 0]
  - id: 2
    data: [100, 100]
 connections:
- - data: [1, 2]
+ - [1, 2]

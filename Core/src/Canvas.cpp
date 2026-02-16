@@ -4,6 +4,7 @@
 #include "Algorithms.h"
 #include "Message.h"
 #include "Mathematics.h"
+#include "Exporter.h"
 
 #include <yaml-cpp/yaml.h>
 #include <imgui.h>
@@ -13,10 +14,24 @@
 
 #define nullid UINT32_MAX
 
+#define SAVE_VER 0
+
+Canvas::~Canvas()
+{
+	if (m_exporter != nullptr)
+	{
+		delete m_exporter;
+		m_exporter = nullptr;
+	}
+}
+
 void Canvas::Initialize()
 {
 	m_gizmo.Initialize();
 	m_mirrorLines.resize(8);
+
+	m_exporter = new Exporter();
+	m_exporter->drawCallback = [&](sf::RenderTarget& target) { DrawTo(target, true); };
 }
 
 void Canvas::Update()
@@ -24,7 +39,7 @@ void Canvas::Update()
 
 }
 
-void Canvas::OnGUI()
+void Canvas::OnInspectorGUI()
 {
 	if (ImGui::CollapsingHeader("View", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -40,6 +55,7 @@ void Canvas::OnGUI()
 	{
 		GUILineThickness();
 		GUILineColor();
+		GUISetMirrors();
 	}
 
 	if (!m_pointSelection.empty())
@@ -59,23 +75,34 @@ void Canvas::OnGUI()
 	}
 }
 
-void Canvas::DrawTo(sf::RenderTarget& target)
+void Canvas::OnExportGUI()
 {
-	if (m_showGrid)
+	m_exporter->OnGUI();
+}
+
+void Canvas::DrawTo(sf::RenderTarget& target, bool linesOnly)
+{
+	if (!linesOnly)
 	{
-		DrawGrid(target);
-	}
-	if (m_showOrigin)
-	{
-		DrawOrigin(target);
-	}
-	if (m_showMirrorLines)
-	{
-		DrawMirrorLines(target);
+		if (m_showGrid)
+		{
+			DrawGrid(target);
+		}
+		if (m_showOrigin)
+		{
+			DrawOrigin(target);
+		}
+		if (m_showMirrorLines)
+		{
+			DrawMirrorLines(target);
+		}
 	}
 
 	LineDrawContext ctx(this, &target);
 	m_connections.ForEach(DrawLineCallback, (void*)&ctx);
+
+	if (linesOnly)
+		return;
 
 	if (m_showPoints)
 	{
@@ -135,6 +162,27 @@ bool Canvas::Load(const std::filesystem::path& path)
 		return false;
 	}
 
+	int version = -1;
+	if (root["version"].IsDefined())
+	{
+		version = root["version"].as<int>();
+	}
+
+	if (version < 0)
+	{
+		Message::ErrorNotice("Valid file version not provided.");
+		return false;
+	}
+	else if (version > SAVE_VER)
+	{
+		Message::ErrorNotice("File version is newer than what is supported. Please update Line Designer.");
+		return false;
+	}
+	//else if (version != SAVE_VER)
+	//{
+	//	  // LEGACY LOAD
+	//}
+
 	if (root["color"].IsDefined())
 	{
 		sf::Color color = sf::Color::White;
@@ -146,11 +194,18 @@ bool Canvas::Load(const std::filesystem::path& path)
 		{
 			color.a = (uint8_t)root["color"][3].as<int>();
 		}
+
+		m_lineColor = color;
 	}
 
 	if (root["thickness"].IsDefined())
 	{	
 		m_lineWidth = root["thickness"].as<float>();
+	}
+
+	if (root["mirror-mask"].IsDefined())
+	{
+		m_mirrorMask = Algorithm::HexToUInt8(root["mirror-mask"].as<std::string>());
 	}
 
 	if (root["points"].IsDefined())
@@ -168,8 +223,8 @@ bool Canvas::Load(const std::filesystem::path& path)
 	{
 		for (const YAML::Node& connection : root["connections"])
 		{
-			uint32_t idA = Algorithm::HexToUInt32(connection["data"][0].as<std::string>());
-			uint32_t idB = Algorithm::HexToUInt32(connection["data"][1].as<std::string>());
+			uint32_t idA = Algorithm::HexToUInt32(connection[0].as<std::string>());
+			uint32_t idB = Algorithm::HexToUInt32(connection[1].as<std::string>());
 			AddConnection(idA, idB);
 		}
 	}
@@ -181,13 +236,18 @@ bool Canvas::Save(const std::filesystem::path& path)
 {
 	m_filepath = path;
 	YAML::Node root{};
+
+	root["version"] = SAVE_VER;
 	
 	root["color"].push_back((int)m_lineColor.r);
 	root["color"].push_back((int)m_lineColor.g);
 	root["color"].push_back((int)m_lineColor.b);
 	root["color"].push_back((int)m_lineColor.a);
+	root["color"].SetStyle(YAML::EmitterStyle::Flow);
 
 	root["thickness"] = m_lineWidth;
+
+	root["mirror-mask"] = Algorithm::UInt8ToHex(m_mirrorMask);
 
 	for (auto& pointPair : m_points)
 	{
@@ -195,14 +255,16 @@ bool Canvas::Save(const std::filesystem::path& path)
 		pointEntry["id"] = Algorithm::UInt32ToHex(pointPair.first);
 		pointEntry["data"].push_back(pointPair.second.coord.x);
 		pointEntry["data"].push_back(pointPair.second.coord.y);
+		pointEntry["data"].SetStyle(YAML::EmitterStyle::Flow);
 		root["points"].push_back(pointEntry);
 	}
 
 	auto visitor = [&](uint32_t idA, uint32_t idB, void* ctxPtr)
 		{
 			YAML::Node connectData;
-			connectData["data"].push_back(Algorithm::UInt32ToHex(idA));
-			connectData["data"].push_back(Algorithm::UInt32ToHex(idB));
+			connectData.push_back(Algorithm::UInt32ToHex(idA));
+			connectData.push_back(Algorithm::UInt32ToHex(idB));
+			connectData.SetStyle(YAML::EmitterStyle::Flow);
 			root["connections"].push_back(connectData);
 		};
 
@@ -314,6 +376,7 @@ void Canvas::RemovePointCommand(uint32_t id)
 	cmd.execute = [&, id]() { RemovePoint(id); };
 
 	App::Exec(cmd);
+	m_pointSelection.clear();
 }
 
 void Canvas::RemoveSelectedPointsCommand()
@@ -345,6 +408,7 @@ void Canvas::RemoveSelectedPointsCommand()
 		};
 
 	App::Exec(cmd);
+	m_pointSelection.clear();
 }
 
 void Canvas::TrySelect(const sf::Vector2f pos, const ClickModifier mod)
@@ -538,6 +602,74 @@ void Canvas::GUILineColor()
 	else if (ImGui::IsItemDeactivated())
 	{
 		m_inspectorCommand = nullptr;
+	}
+}
+
+void Canvas::GUISetMirrors()
+{
+	if (ImGui::BeginMenu("Mirrors"))
+	{
+		uint8_t mask = m_mirrorMask;
+		bool doCommand = false;
+		bool val = (m_mirrorMask & MIRROR_VERT);
+		if (ImGui::MenuItem("Vertical", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_VERT : m_mirrorMask | MIRROR_VERT;
+		}
+		val = (m_mirrorMask & MIRROR_HORIZ);
+		if (ImGui::MenuItem("Horizontal", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_HORIZ : m_mirrorMask | MIRROR_HORIZ;
+		}
+		val = (m_mirrorMask & MIRROR_POS_30);
+		if (ImGui::MenuItem("30-degrees", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_POS_30 : m_mirrorMask | MIRROR_POS_30;
+		}
+		val = (m_mirrorMask & MIRROR_POS_45);
+		if (ImGui::MenuItem("45-degrees", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_POS_45 : m_mirrorMask | MIRROR_POS_45;
+		}
+		val = (m_mirrorMask & MIRROR_POS_60);
+		if (ImGui::MenuItem("60-degrees", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_POS_60 : m_mirrorMask | MIRROR_POS_60;
+		}
+		val = (m_mirrorMask & MIRROR_NEG_30);
+		if (ImGui::MenuItem("-30-degrees", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_NEG_30 : m_mirrorMask | MIRROR_NEG_30;
+		}
+		val = (m_mirrorMask & MIRROR_NEG_45);
+		if (ImGui::MenuItem("-45-degrees", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_NEG_45 : m_mirrorMask | MIRROR_NEG_45;
+		}
+		val = (m_mirrorMask & MIRROR_NEG_60);
+		if (ImGui::MenuItem("-60-degrees", nullptr, val))
+		{
+			doCommand = true;
+			m_mirrorMask = (val) ? m_mirrorMask & ~MIRROR_NEG_60 : m_mirrorMask | MIRROR_NEG_60;
+		}
+
+		if (doCommand)
+		{
+			xe::Command cmd;
+			cmd.revert = [this, mask]() { m_mirrorMask = mask; };
+			mask = m_mirrorMask;
+			cmd.execute = [this, mask]() { m_mirrorMask = mask; };
+			App::Exec(cmd);
+		}
+
+		ImGui::EndMenu();
 	}
 }
 

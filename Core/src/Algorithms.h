@@ -27,6 +27,26 @@ namespace Algorithm
         return ss.str();
     }
 
+    inline uint8_t HexToUInt8(const std::string& str)
+    {
+        uint32_t value;
+        std::stringstream ss;
+
+        ss << std::hex << str;
+        ss >> value;
+
+        return (uint8_t)value;
+    }
+
+    inline std::string UInt8ToHex(const uint8_t value)
+    {
+        std::stringstream ss;
+
+        ss << std::hex << std::setfill('0') << std::setw(2) << (int)value;
+
+        return ss.str();
+    }
+
     inline uint32_t RandUInt32()
     {
         static std::random_device rd;

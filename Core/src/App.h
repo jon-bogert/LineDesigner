@@ -48,17 +48,18 @@ private:
     void _Redo();
 
 private:
-    std::unique_ptr<sf::RenderWindow> window;
-    std::unique_ptr<sf::RenderTexture> viewport;
-    std::unique_ptr<Canvas> canvas;
+    std::unique_ptr<sf::RenderWindow> m_window;
+    std::unique_ptr<sf::RenderTexture> m_viewport;
+    std::unique_ptr<Canvas> m_canvas;
 
     xe::CommandStack m_cmdStack;
 
-    sf::ContextSettings windowCtx;
-    sf::Clock deltaClock;
-    sf::Vector2i lastMousePos;
-    sf::Vector2f lastViewportPosition;
-    int zoomPercent = 100;
-    int scrollDelta = 0;
+    sf::ContextSettings m_windowCtx;
+    sf::Clock m_deltaClock;
+    sf::Vector2i m_lastMousePos;
+    sf::Vector2f m_lastViewportPosition;
+    int m_zoomPercent = 100;
+    int m_scrollDelta = 0;
     bool m_isSaved = true;
+    bool m_showExport = false;
 };

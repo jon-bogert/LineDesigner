@@ -59,61 +59,61 @@ void App::Exec(const std::function<void(void)>& execute, const std::function<voi
 
 void App::_Start()
 {
-    windowCtx.antialiasingLevel = 8;
+    m_windowCtx.antialiasingLevel = 8;
 
     sf::Vector2u windowDim = { 1920u, 1080u };
 
-    window = std::make_unique<sf::RenderWindow>(sf::VideoMode(windowDim.x, windowDim.y), "LineDesigner", sf::Style::Default);
+    m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(windowDim.x, windowDim.y), "LineDesigner", sf::Style::Default);
     //window->setFramerateLimit(60);
 
 #ifdef WIN32
-    HWND hWnd = window->getSystemHandle();
+    HWND hWnd = m_window->getSystemHandle();
     BOOL useDark = TRUE;
     DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
 #endif // WIN32
 
-    viewport = std::make_unique<sf::RenderTexture>();
-    viewport->create(1920, 1080, windowCtx);
+    m_viewport = std::make_unique<sf::RenderTexture>();
+    m_viewport->create(1920, 1080, m_windowCtx);
     {
-        sf::View view = viewport->getView();
+        sf::View view = m_viewport->getView();
         view.setCenter({ 0.f, 0.f });
-        viewport->setView(view);
+        m_viewport->setView(view);
     }
 
-    ImGui::SFML::Init(*window);
+    ImGui::SFML::Init(*m_window);
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    canvas = std::make_unique<Canvas>();
-    canvas->Initialize();
+    m_canvas = std::make_unique<Canvas>();
+    m_canvas->Initialize();
 }
 
 void App::_Update()
 {
-    while (window->isOpen())
+    while (m_window->isOpen())
     {
-        scrollDelta = 0;
+        m_scrollDelta = 0;
         sf::Vector2i mousePos = sf::Mouse::getPosition();
-        sf::Vector2i mouseDelta = lastMousePos - mousePos;
-        lastMousePos = mousePos;
+        sf::Vector2i mouseDelta = m_lastMousePos - mousePos;
+        m_lastMousePos = mousePos;
 
         sf::Event event;
-        while (window->pollEvent(event))
+        while (m_window->pollEvent(event))
         {
-            ImGui::SFML::ProcessEvent(*window, event);
+            ImGui::SFML::ProcessEvent(*m_window, event);
 
             if (event.type == sf::Event::Closed)
             {
                 if (_CheckSave())
                 {
-                    window->close();
+                    m_window->close();
                 }
             }
 
             if (event.type == sf::Event::MouseWheelScrolled)
             {
-                scrollDelta = event.mouseWheelScroll.delta;
+                m_scrollDelta = event.mouseWheelScroll.delta;
             }
 
             if (event.type == sf::Event::KeyPressed && sf::Keyboard::isKeyPressed(sf::Keyboard::LControl))
@@ -129,7 +129,7 @@ void App::_Update()
             }
         }
 
-        ImGui::SFML::Update(*window, deltaClock.restart());
+        ImGui::SFML::Update(*m_window, m_deltaClock.restart());
         ImGui::DockSpaceOverViewport();
         ImGui::BeginMainMenuBar();
         if (ImGui::BeginMenu("File"))
@@ -158,7 +158,7 @@ void App::_Update()
 
             if (ImGui::MenuItem("Export", "Ctrl+E"))
             {
-
+                m_showExport = true;
             }
 
             ImGui::Separator();
@@ -167,7 +167,7 @@ void App::_Update()
             {
                 if (_CheckSave())
                 {
-                    window->close();
+                    m_window->close();
                 }
             }
 
@@ -185,21 +185,21 @@ void App::_Update()
         ImVec2 availSize = ImGui::GetContentRegionAvail();
         if (availSize.x > 0 && availSize.y > 0)
         {
-            sf::Vector2u currSize = viewport->getSize();
+            sf::Vector2u currSize = m_viewport->getSize();
             if (currSize.x != (uint32_t)availSize.x || currSize.y != (uint32_t)availSize.y)
             {
-                sf::View view = viewport->getView();
+                sf::View view = m_viewport->getView();
                 sf::Vector2f center = view.getCenter();
 
-                viewport->create((uint32_t)availSize.x, (uint32_t)availSize.y, windowCtx);
-                currSize = viewport->getSize();
+                m_viewport->create((uint32_t)availSize.x, (uint32_t)availSize.y, m_windowCtx);
+                currSize = m_viewport->getSize();
 
-                view = viewport->getView();
+                view = m_viewport->getView();
                 view.setCenter(center);
                 sf::Vector2f viewSize = (sf::Vector2f)currSize;
-                viewSize *= (100.f / zoomPercent);
+                viewSize *= (100.f / m_zoomPercent);
                 view.setSize(viewSize);
-                viewport->setView(view);
+                m_viewport->setView(view);
             }
         }
 
@@ -207,19 +207,19 @@ void App::_Update()
         {
             if (ImGui::IsMouseDown(ImGuiMouseButton_Middle))
             {
-                sf::View view = viewport->getView();
-                view.move((sf::Vector2f)mouseDelta * (100.f / zoomPercent));
-                viewport->setView(view);
+                sf::View view = m_viewport->getView();
+                view.move((sf::Vector2f)mouseDelta * (100.f / m_zoomPercent));
+                m_viewport->setView(view);
             }
-            if (scrollDelta != 0)
+            if (m_scrollDelta != 0)
             {
-                zoomPercent = Algorithm::Clamp(zoomPercent + scrollDelta * 10, 25, 400);
-                sf::View view = viewport->getView();
-                sf::Vector2f viewSize = (sf::Vector2f)viewport->getSize();
-                viewSize *= (100.f / zoomPercent);
+                m_zoomPercent = Algorithm::Clamp(m_zoomPercent + m_scrollDelta * 10, 25, 400);
+                sf::View view = m_viewport->getView();
+                sf::Vector2f viewSize = (sf::Vector2f)m_viewport->getSize();
+                viewSize *= (100.f / m_zoomPercent);
                 view.setSize(viewSize);
 
-                viewport->setView(view);
+                m_viewport->setView(view);
             }
             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
@@ -233,49 +233,56 @@ void App::_Update()
                     mod = Canvas::ClickModifier::Secondary;
                 }
 
-                xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - lastViewportPosition;
-                sf::Vector2f worldPos = viewport->mapPixelToCoords(windowPos);
-                canvas->TrySelect(worldPos, mod);
+                xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - m_lastViewportPosition;
+                sf::Vector2f worldPos = m_viewport->mapPixelToCoords(windowPos);
+                m_canvas->TrySelect(worldPos, mod);
             }
             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             {
-                xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - lastViewportPosition;
-                sf::Vector2f worldPos = viewport->mapPixelToCoords(windowPos);
-                canvas->NewPointCommand(worldPos);
+                xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - m_lastViewportPosition;
+                sf::Vector2f worldPos = m_viewport->mapPixelToCoords(windowPos);
+                m_canvas->NewPointCommand(worldPos);
             }
         }
         if (ImGui::IsWindowFocused())
         {
             if (ImGui::IsKeyPressed(ImGuiKey_Delete))
             {
-                canvas->TryDelete();
+                m_canvas->TryDelete();
             }
             if (ImGui::IsKeyPressed(ImGuiKey_E))
             {
-                canvas->TempExport();
+                m_canvas->TempExport();
             }
         }
 
-        viewport->clear({ 10, 10, 10 });
-        canvas->DrawTo(*viewport);
-        viewport->display();
+        m_viewport->clear({ 10, 10, 10 });
+        m_canvas->DrawTo(*m_viewport);
+        m_viewport->display();
 
-        ImTextureID texID = (void*)viewport->getTexture().getNativeHandle();
+        ImTextureID texID = (void*)m_viewport->getTexture().getNativeHandle();
         ImGui::Image(texID, availSize, ImVec2(0, 1), ImVec2(1, 0));
-        lastViewportPosition = ImGui::GetItemRectMin();
+        m_lastViewportPosition = ImGui::GetItemRectMin();
 
         ImGui::End();
 
         ImGui::Begin("Inspector");
-        ImGui::Text("Zoom: %i", zoomPercent);
-        canvas->OnGUI();
+        ImGui::Text("Zoom: %i", m_zoomPercent);
+        m_canvas->OnInspectorGUI();
         ImGui::End();
 
-        canvas->Update();
+        m_canvas->Update();
 
-        window->clear({ 10, 10, 10 });
-        ImGui::SFML::Render(*window);
-        window->display();
+        if (m_showExport)
+        {
+            ImGui::Begin("Export", &m_showExport, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking);
+            m_canvas->OnExportGUI();
+            ImGui::End();
+        }
+
+        m_window->clear({ 10, 10, 10 });
+        ImGui::SFML::Render(*m_window);
+        m_window->display();
     }
 }
 
@@ -291,7 +298,8 @@ void App::_New()
 
     m_cmdStack.Clear();
     m_isSaved = true;
-    canvas = std::make_unique<Canvas>();
+    m_canvas = std::make_unique<Canvas>();
+    m_canvas->Initialize();
 }
 
 bool App::_Load(const std::filesystem::path& path)
@@ -300,7 +308,7 @@ bool App::_Load(const std::filesystem::path& path)
         return true;
 
     _New();
-    if (!canvas->Load(path))
+    if (!m_canvas->Load(path))
     {
         _New();
         std::stringstream os;
@@ -308,6 +316,7 @@ bool App::_Load(const std::filesystem::path& path)
         Message::ErrorNotice(os);
         return false;
     }
+    m_canvas->Initialize();
     return true;
 }
 
@@ -327,7 +336,7 @@ bool App::_Load()
 
 bool App::_Save(const std::filesystem::path& path)
 {
-    if (!canvas->Save(path))
+    if (!m_canvas->Save(path))
     {
         std::stringstream os;
         os << "There was a problem saving to file: " << path;
@@ -339,7 +348,7 @@ bool App::_Save(const std::filesystem::path& path)
 
 bool App::_Save(bool forceNew)
 {
-    if (canvas->GetPath().empty() || forceNew)
+    if (m_canvas->GetPath().empty() || forceNew)
     {
         xe::FileBrowser browser;
         browser.PushFileType(L"*.lines;*.yaml;*.yml", L"Line Designer File");
@@ -353,10 +362,10 @@ bool App::_Save(bool forceNew)
             path += L".lines";
         }
 
-        canvas->SetPath(path);
+        m_canvas->SetPath(path);
     }
 
-    return _Save(canvas->GetPath());
+    return _Save(m_canvas->GetPath());
 }
 
 bool App::_CheckSave()

@@ -226,6 +226,13 @@ namespace xe
 		uint8_t b = 0;
 		uint8_t a = 255;
 
+		Color8() = default;
+		constexpr Color8(uint8_t r, uint8_t g, uint8_t b, uint8_t a) : r(r), g(g), b(b), a(a) {}
+		Color8& operator=(const sf::Color& rhs) { r = rhs.r; g = rhs.g; b = rhs.b; a = rhs.a; return *this; }		// **EDIT** Added for SFML Compatibility
+		Color8(const sf::Color& other) : r(other.r), g(other.g), b(other.b), a(other.a) {}						// **EDIT** Added for SFML Compatibility
+		operator sf::Color() const { return { r, g, b, a }; };														// **EDIT** Added for SFML Compatibility
+		operator ImColor() const { return { r, g, b, a }; };										// **EDIT** Added for SFML Compatibility
+
 		friend std::ostream& operator<<(std::ostream& os, const Color8& color)
 		{
 			os << "R:" << (int)color.r << " G:" << (int)color.g << " B:" << (int)color.b << " A:" << (int)color.a;
@@ -249,11 +256,14 @@ namespace xe
 			:r(r), g(g), b(b), a(a) {}
 		constexpr Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) noexcept
 			:r(r / 255.f), g(g / 255.f), b(b / 255.f), a(a / 255.f) {}
+		Color(xe::Color8 c8)
+			:r(c8.r / 255.f), g(c8.g / 255.f), b(c8.b / 255.f), a(c8.a / 255.f) {
+		}
 		Color(const std::string& hex, float alpha = 1.f);
 
 		Color8 As8bit() const
 		{
-			return Color8{ uint8_t((r * 255) + 0.5f), uint8_t((g * 255) + 0.5f), uint8_t((b * 255) + 0.5f), uint8_t((a * 255) + 0.5f) };
+			return Color8( uint8_t((r * 255) + 0.5f), uint8_t((g * 255) + 0.5f), uint8_t((b * 255) + 0.5f), uint8_t((a * 255) + 0.5f) );
 		}
 
 		constexpr Color operator-() const { return { -r, -g, -b, -a }; }
@@ -818,6 +828,8 @@ namespace xe
 
 		template <typename T> inline T Clamp(T value, T min, T max) { return Max(min, Min(max, value)); }
 
+		inline float Max(float a, float b) { return (a >= b) ? a : b; }
+		inline float Min(float a, float b) { return (a <= b) ? a : b; }
 		inline float Abs(float value) { return (value >= 0.0f) ? value : -value; }
 		inline float Sign(float value) { return (value >= 0.0f) ? 1.0f : -1.0f; }
 		inline float Sqr(float value) { return value * value; }

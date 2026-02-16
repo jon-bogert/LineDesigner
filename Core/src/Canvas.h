@@ -27,6 +27,7 @@
 
 #endif // MIRROR_DEFS
 
+struct Exporter;
 class Canvas
 {
 	struct Point
@@ -54,10 +55,13 @@ public:
 		Add,
 	};
 
+	virtual ~Canvas();
+
 	void Initialize();
 	void Update();
-	void OnGUI();
-	void DrawTo(sf::RenderTarget& target);
+	void OnInspectorGUI();
+	void OnExportGUI();
+	void DrawTo(sf::RenderTarget& target, bool linesOnly = false);
 
 	bool Load(const std::filesystem::path& path);
 	bool Save(const std::filesystem::path& path);
@@ -85,6 +89,7 @@ private:
 	void GUIConnectionBool(uint32_t idA, uint32_t idB);
 	void GUILineThickness();
 	void GUILineColor();
+	void GUISetMirrors();
 
 	void DrawGrid(sf::RenderTarget& target);
 	void DrawOrigin(sf::RenderTarget& target);
@@ -104,11 +109,15 @@ private:
 	std::vector<uint32_t> m_pointSelection;
 	std::unique_ptr<xe::Command> m_inspectorCommand = nullptr;
 
+	Exporter* m_exporter = nullptr;
+
 	Gizmo m_gizmo;
 	sf::RectangleShape m_xAxisLine;
 	sf::RectangleShape m_yAxisLine;
 	std::vector<sf::RectangleShape> m_gridLines;
 	std::vector<sf::RectangleShape> m_mirrorLines;
+
+
 
 	float m_lineWidth = 10.f;
 	float m_unitSize = 100.f;
@@ -117,7 +126,7 @@ private:
 	bool m_showGrid = true;
 	bool m_showMirrorLines = false; // TODO -- to `true` when visual is implemented properly
 	bool m_useRelationSelect = false;
-	uint8_t m_mirrorMask = MIRROR_DEFS;
+	uint8_t m_mirrorMask = 0;
 	sf::Color m_lineColor = sf::Color::White;
 	sf::Color m_pointColorDefault = { 127, 127, 127 };
 	sf::Color m_pointColorPrimary = sf::Color::Red;
