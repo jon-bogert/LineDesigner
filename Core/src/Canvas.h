@@ -59,7 +59,8 @@ public:
 	void OnGUI();
 	void DrawTo(sf::RenderTarget& target);
 
-	void Load(const std::filesystem::path& path);
+	bool Load(const std::filesystem::path& path);
+	bool Save(const std::filesystem::path& path);
 
 	uint32_t AddPoint(const sf::Vector2f& coord, uint32_t id = UINT32_MAX);
 	void RemovePoint(uint32_t id);
@@ -76,6 +77,9 @@ public:
 
 	void TempExport();
 
+	std::filesystem::path GetPath() const { return m_filepath; }
+	void SetPath(const std::filesystem::path& path) { m_filepath = path; }
+
 private:
 	void GUIPointPosition(uint32_t id);
 	void GUIConnectionBool(uint32_t idA, uint32_t idB);
@@ -90,6 +94,8 @@ private:
 	static void DrawLineCallback(uint32_t idA, uint32_t idB, void* data);
 	static void MirrorLine(std::vector<size_t>& lineBuffer, std::vector<size_t>& tempBuffer, LineDrawContext& ctx, const std::function<void(sf::Vector2f&)>& transformPoint);
 	static void ReflectAcrossAngle(sf::Vector2f& v, float degrees);
+
+	std::filesystem::path m_filepath;
 
 	std::unordered_map<uint32_t, Point> m_points;
 	ConnectionGraph m_connections;

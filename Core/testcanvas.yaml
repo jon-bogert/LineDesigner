@@ -4,5 +4,4 @@ points:
  - id: 2
    data: [100, 100]
 connections:
- - id: a
-   data: [1, 2]
+ - data: [1, 2]

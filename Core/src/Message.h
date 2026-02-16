@@ -12,4 +12,7 @@ namespace Message
 
 	void DebugLog(const std::string& msg);
 	inline void DebugLog(const std::stringstream& msg) { InfoNotice(msg.str()); };
+
+	enum Result { Yes, No, Cancel };
+	Result SaveBox();
 }

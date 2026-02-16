@@ -4,6 +4,8 @@
 #include "Algorithms.h"
 #include "Mathematics.h"
 
+#include <XephTools/FileBrowser.h>
+
 #ifdef WIN32
 #include <Windows.h>
 #include <dwmapi.h>
@@ -45,11 +47,13 @@ void App::Shutdown()
 
 void App::Exec(const xe::Command& cmd)
 {
+    s_inst->m_isSaved = false;
     s_inst->m_cmdStack.PushAndExecute(cmd);
 }
 
 void App::Exec(const std::function<void(void)>& execute, const std::function<void(void)>& revert)
 {
+    s_inst->m_isSaved = false;
     s_inst->m_cmdStack.PushAndExecute(execute, revert);
 }
 
@@ -83,7 +87,6 @@ void App::_Start()
 
     canvas = std::make_unique<Canvas>();
     canvas->Initialize();
-    canvas->Load("testcanvas.yaml");
 }
 
 void App::_Update()
@@ -102,7 +105,10 @@ void App::_Update()
 
             if (event.type == sf::Event::Closed)
             {
-                window->close();
+                if (_CheckSave())
+                {
+                    window->close();
+                }
             }
 
             if (event.type == sf::Event::MouseWheelScrolled)
@@ -130,17 +136,22 @@ void App::_Update()
         {
             if (ImGui::MenuItem("New", "Ctrl+N"))
             {
-                // Handle New
+                _New();
             }
 
             if (ImGui::MenuItem("Open...", "Ctrl+O"))
             {
-                // Handle Open
+                _Load();
             }
 
             if (ImGui::MenuItem("Save", "Ctrl+S"))
             {
-                // Handle Save
+                _Save();
+            }
+
+            if (ImGui::MenuItem("Save As", "Ctrl+Shift+S"))
+            {
+                _Save(true);
             }
 
             ImGui::Separator();
@@ -154,7 +165,10 @@ void App::_Update()
 
             if (ImGui::MenuItem("Exit"))
             {
-                // Handle Exit (set a flag, don't close immediately)
+                if (_CheckSave())
+                {
+                    window->close();
+                }
             }
 
             ImGui::EndMenu();
@@ -162,7 +176,12 @@ void App::_Update()
         
         ImGui::EndMainMenuBar();
 
-        ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoCollapse);
+        int flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoCollapse;
+        if (!m_isSaved)
+            flags |= ImGuiWindowFlags_UnsavedDocument;
+
+        ImGui::Begin("Viewport", nullptr, flags);
+
         ImVec2 availSize = ImGui::GetContentRegionAvail();
         if (availSize.x > 0 && availSize.y > 0)
         {
@@ -263,6 +282,100 @@ void App::_Update()
 void App::_Shutdown()
 {
     ImGui::SFML::Shutdown();
+}
+
+void App::_New()
+{
+    if (!_CheckSave())
+        return;
+
+    m_cmdStack.Clear();
+    m_isSaved = true;
+    canvas = std::make_unique<Canvas>();
+}
+
+bool App::_Load(const std::filesystem::path& path)
+{
+    if (!_CheckSave())
+        return true;
+
+    _New();
+    if (!canvas->Load(path))
+    {
+        _New();
+        std::stringstream os;
+        os << "Could not read file: " << path;
+        Message::ErrorNotice(os);
+        return false;
+    }
+    return true;
+}
+
+bool App::_Load()
+{
+    if (!_CheckSave())
+        return true;
+
+    xe::FileBrowser browser;
+    browser.PushFileType(L"*.lines;*.yaml;*.yml", L"Line Designer File");
+    std::filesystem::path path = browser.GetFile();
+    if (path.empty())
+        return false;
+
+    return _Load(path);
+}
+
+bool App::_Save(const std::filesystem::path& path)
+{
+    if (!canvas->Save(path))
+    {
+        std::stringstream os;
+        os << "There was a problem saving to file: " << path;
+        return false;
+    }
+    m_isSaved = true;
+    return true;
+}
+
+bool App::_Save(bool forceNew)
+{
+    if (canvas->GetPath().empty() || forceNew)
+    {
+        xe::FileBrowser browser;
+        browser.PushFileType(L"*.lines;*.yaml;*.yml", L"Line Designer File");
+        std::filesystem::path path = browser.SaveFile();
+        if (path.empty())
+            return false;
+
+        if (!path.has_extension()
+            || (path.extension() != L".lines" && path.extension() != L".yaml" && path.extension() != L".yml"))
+        {
+            path += L".lines";
+        }
+
+        canvas->SetPath(path);
+    }
+
+    return _Save(canvas->GetPath());
+}
+
+bool App::_CheckSave()
+{
+    if (m_isSaved)
+        return true;
+
+    Message::Result reuslt = Message::SaveBox();
+    switch (reuslt)
+    {
+    case Message::Yes:
+        return _Save();
+    case Message::No:
+        return true;
+    case Message::Cancel:
+        return false;
+    }
+
+    return false;
 }
 
 void App::_Undo()

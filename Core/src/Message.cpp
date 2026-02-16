@@ -22,3 +22,18 @@ void Message::DebugLog(const std::string& msg)
 	std::cout << msg << std::endl;
 #endif // CONSOLE
 }
+
+Message::Result Message::SaveBox()
+{
+	int result = MessageBoxA(NULL, "You have unsaved progress. Would you like to save?", "Unsaved Progress", MB_ICONINFORMATION | MB_YESNOCANCEL);
+	switch (result)
+	{
+	case IDYES:
+		return Result::Yes;
+	case IDNO:
+		return Result::No;
+	case IDCANCEL:
+		return Result::Cancel;
+	}
+	return Result();
+}

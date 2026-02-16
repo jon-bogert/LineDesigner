@@ -36,6 +36,14 @@ private:
     void _Update();
     void _Shutdown();
 
+    void _New();
+    bool _Load(const std::filesystem::path& path);
+    bool _Load();
+    bool _Save(const std::filesystem::path& path);
+    bool _Save(bool forceNew = false);
+
+    bool _CheckSave();
+
     void _Undo();
     void _Redo();
 
@@ -52,4 +60,5 @@ private:
     sf::Vector2f lastViewportPosition;
     int zoomPercent = 100;
     int scrollDelta = 0;
+    bool m_isSaved = true;
 };

@@ -114,15 +114,14 @@ void Canvas::DrawTo(sf::RenderTarget& target)
 	}
 }
 
-void Canvas::Load(const std::filesystem::path& path)
+bool Canvas::Load(const std::filesystem::path& path)
 {
+	m_filepath = path;
+
 	std::ifstream file(path);
 	if (!file.is_open())
 	{
-		std::stringstream msg;
-		msg << "Could not open file at path: " << path;
-		Message::InfoNotice(msg);
-		return;
+		return false;
 	}
 
 	YAML::Node root{};
@@ -133,10 +132,25 @@ void Canvas::Load(const std::filesystem::path& path)
 	}
 	catch (std::exception)
 	{
-		std::stringstream msg;
-		msg << path << " was not formatted properly and could not be read.";
-		Message::ErrorNotice(msg);
-		return;
+		return false;
+	}
+
+	if (root["color"].IsDefined())
+	{
+		sf::Color color = sf::Color::White;
+		color.r = (uint8_t)root["color"][0].as<int>();
+		color.g = (uint8_t)root["color"][1].as<int>();
+		color.b = (uint8_t)root["color"][2].as<int>();
+
+		if (root["color"].size() >= 4)
+		{
+			color.a = (uint8_t)root["color"][3].as<int>();
+		}
+	}
+
+	if (root["thickness"].IsDefined())
+	{	
+		m_lineWidth = root["thickness"].as<float>();
 	}
 
 	if (root["points"].IsDefined())
@@ -154,11 +168,67 @@ void Canvas::Load(const std::filesystem::path& path)
 	{
 		for (const YAML::Node& connection : root["connections"])
 		{
-			uint32_t idA = connection["data"][0].as<int>();
-			uint32_t idB = connection["data"][1].as<int>();
+			uint32_t idA = Algorithm::HexToUInt32(connection["data"][0].as<std::string>());
+			uint32_t idB = Algorithm::HexToUInt32(connection["data"][1].as<std::string>());
 			AddConnection(idA, idB);
 		}
 	}
+
+	return true;
+}
+
+bool Canvas::Save(const std::filesystem::path& path)
+{
+	m_filepath = path;
+	YAML::Node root{};
+	
+	root["color"].push_back((int)m_lineColor.r);
+	root["color"].push_back((int)m_lineColor.g);
+	root["color"].push_back((int)m_lineColor.b);
+	root["color"].push_back((int)m_lineColor.a);
+
+	root["thickness"] = m_lineWidth;
+
+	for (auto& pointPair : m_points)
+	{
+		YAML::Node pointEntry;
+		pointEntry["id"] = Algorithm::UInt32ToHex(pointPair.first);
+		pointEntry["data"].push_back(pointPair.second.coord.x);
+		pointEntry["data"].push_back(pointPair.second.coord.y);
+		root["points"].push_back(pointEntry);
+	}
+
+	auto visitor = [&](uint32_t idA, uint32_t idB, void* ctxPtr)
+		{
+			YAML::Node connectData;
+			connectData["data"].push_back(Algorithm::UInt32ToHex(idA));
+			connectData["data"].push_back(Algorithm::UInt32ToHex(idB));
+			root["connections"].push_back(connectData);
+		};
+
+	m_connections.ForEach(visitor, nullptr);
+
+	std::filesystem::path parent = path.parent_path();
+
+	try
+	{
+	    if (!std::filesystem::exists(parent))
+	    	std::filesystem::create_directories(parent);
+	}
+	catch (std::exception)
+	{
+		return false;
+	}
+
+	std::ofstream file(path);
+	if (!file.is_open())
+	{
+		return false;
+	}
+
+	file << root;
+
+	return true;
 }
 
 uint32_t Canvas::AddPoint(const sf::Vector2f& coord, uint32_t id)
