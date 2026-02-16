@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Canvas.h"
+#include "AppPrefs.h"
 
 #include <XephTools/CommandStack.h>
 
@@ -33,6 +34,8 @@ public:
     static void Exec(const xe::Command& cmd);
     static void Exec(const std::function<void(void)>& execute, const std::function<void(void)>& revert);
 
+    static AppPrefs& Prefs();
+
 private:
     void _Start();
     void _Update();
@@ -56,6 +59,7 @@ private:
 
     xe::CommandStack m_cmdStack;
 
+    AppPrefs m_prefs;
     sf::ContextSettings m_windowCtx;
     sf::Clock m_deltaClock;
     sf::Vector2i m_lastMousePos;

@@ -44,3 +44,4 @@ Makefile
 !openal32.dll
 !yaml-cpp-d.lib
 !yaml-cpp.lib
+Core/prefs.yaml

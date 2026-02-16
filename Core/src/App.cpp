@@ -63,11 +63,17 @@ void App::Exec(const std::function<void(void)>& execute, const std::function<voi
     s_inst->m_cmdStack.PushAndExecute(execute, revert);
 }
 
+AppPrefs& App::Prefs()
+{
+    return s_inst->m_prefs;
+}
+
 void App::_Start()
 {
+    m_prefs.Load();
     m_windowCtx.antialiasingLevel = 8;
 
-    sf::Vector2u windowDim = { 1280u, 720u };
+    sf::Vector2u windowDim = { m_prefs.windowWidth, m_prefs.windowHeight };
 
     m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(windowDim.x, windowDim.y), "Line Designer", sf::Style::Default);
     //window->setFramerateLimit(60);
@@ -90,7 +96,8 @@ void App::_Start()
     ImGuiIO& io = ImGui::GetIO();
 
     io.Fonts->Clear();
-    io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", 20.0f);
+    std::filesystem::path fontpath = "C:\\Windows\\Fonts\\" + m_prefs.fontName;
+    io.Fonts->AddFontFromFileTTF(fontpath.string().c_str(), m_prefs.fontSize);
     ImGui::SFML::UpdateFontTexture();
     
     
@@ -333,6 +340,10 @@ void App::_Update()
 
 void App::_Shutdown()
 {
+    m_prefs.windowWidth = m_window->getSize().x;
+    m_prefs.windowHeight = m_window->getSize().y;
+    m_prefs.Save();
+
     ImGui::SFML::Shutdown();
 }
 
@@ -395,7 +406,14 @@ bool App::_Save(bool forceNew)
 {
     if (m_canvas->GetPath().empty() || forceNew)
     {
+        AppPrefs& prefs = App::Prefs();
+
         xe::FileBrowser browser;
+        if (!prefs.lastSave.empty())
+        {
+            browser.SetStartPath(prefs.lastSave);
+        }
+
         browser.PushFileType(L"*.lines;*.yaml;*.yml", L"Line Designer File");
         std::filesystem::path path = browser.SaveFile();
         if (path.empty())
@@ -407,6 +425,7 @@ bool App::_Save(bool forceNew)
             path += L".lines";
         }
 
+        prefs.lastSave = path.parent_path();
         m_canvas->SetPath(path);
     }
 
