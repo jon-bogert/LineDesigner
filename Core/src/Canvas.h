@@ -79,7 +79,13 @@ public:
 	void TrySelect(const sf::Vector2f pos, const ClickModifier mod = ClickModifier::Primary);
 	void TryDelete();
 
-	void TempExport();
+	void StartMoveSelection();
+	void MoveSelection(const sf::Vector2f& moveAmount);
+	void EndMoveSelection();
+
+	Gizmo& GetGizmo() { return m_gizmo; }
+	const Gizmo& GetGizmo() const { return m_gizmo; }
+	const bool IsGizmoActive() const { return !m_pointSelection.empty(); }
 
 	std::filesystem::path GetPath() const { return m_filepath; }
 	void SetPath(const std::filesystem::path& path) { m_filepath = path; }
@@ -116,8 +122,6 @@ private:
 	sf::RectangleShape m_yAxisLine;
 	std::vector<sf::RectangleShape> m_gridLines;
 	std::vector<sf::RectangleShape> m_mirrorLines;
-
-
 
 	float m_lineWidth = 10.f;
 	float m_unitSize = 100.f;

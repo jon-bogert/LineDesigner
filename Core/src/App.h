@@ -28,6 +28,8 @@ public:
     static void Update();
     static void Shutdown();
 
+    static void TryOpen(const std::filesystem::path& filePath);
+
     static void Exec(const xe::Command& cmd);
     static void Exec(const std::function<void(void)>& execute, const std::function<void(void)>& revert);
 

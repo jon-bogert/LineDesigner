@@ -45,6 +45,11 @@ void App::Shutdown()
 	s_inst = nullptr;
 }
 
+void App::TryOpen(const std::filesystem::path& filePath)
+{
+    s_inst->_Load(filePath);
+}
+
 void App::Exec(const xe::Command& cmd)
 {
     s_inst->m_isSaved = false;
@@ -61,9 +66,9 @@ void App::_Start()
 {
     m_windowCtx.antialiasingLevel = 8;
 
-    sf::Vector2u windowDim = { 1920u, 1080u };
+    sf::Vector2u windowDim = { 1280u, 720u };
 
-    m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(windowDim.x, windowDim.y), "LineDesigner", sf::Style::Default);
+    m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(windowDim.x, windowDim.y), "Line Designer", sf::Style::Default);
     //window->setFramerateLimit(60);
 
 #ifdef WIN32
@@ -73,7 +78,7 @@ void App::_Start()
 #endif // WIN32
 
     m_viewport = std::make_unique<sf::RenderTexture>();
-    m_viewport->create(1920, 1080, m_windowCtx);
+    m_viewport->create(windowDim.x, windowDim.y, m_windowCtx);
     {
         sf::View view = m_viewport->getView();
         view.setCenter({ 0.f, 0.f });
@@ -221,38 +226,72 @@ void App::_Update()
 
                 m_viewport->setView(view);
             }
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            {
-                Canvas::ClickModifier mod = Canvas::ClickModifier::Primary;
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
-                {
-                    mod = Canvas::ClickModifier::Add;
-                }
-                else if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl))
-                {
-                    mod = Canvas::ClickModifier::Secondary;
-                }
 
-                xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - m_lastViewportPosition;
-                sf::Vector2f worldPos = m_viewport->mapPixelToCoords(windowPos);
-                m_canvas->TrySelect(worldPos, mod);
-            }
-            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            Gizmo& gizmo = m_canvas->GetGizmo();
+            if (m_canvas->IsGizmoActive())
             {
-                xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - m_lastViewportPosition;
-                sf::Vector2f worldPos = m_viewport->mapPixelToCoords(windowPos);
-                m_canvas->NewPointCommand(worldPos);
+                if (gizmo.IsDragging())
+                {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                    {
+                        sf::View view = m_viewport->getView();
+                        sf::Vector2f moveAmount = gizmo.Move((sf::Vector2f)mouseDelta * (100.f / m_zoomPercent));
+                        m_canvas->MoveSelection(moveAmount);
+                    }
+                    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                    {
+                        m_canvas->EndMoveSelection();
+                        gizmo.EndDragging();
+                    }
+                }
+                else
+                {
+                    sf::View view = m_viewport->getView();
+                    sf::View defaultView = m_viewport->getDefaultView();
+                    float scale = view.getSize().y / defaultView.getSize().y;
+                    xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - m_lastViewportPosition;
+                    sf::Vector2f worldPos = m_viewport->mapPixelToCoords(windowPos);
+                    gizmo.CheckHover(scale, worldPos);
+
+                    if (gizmo.IsHovering() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                    {
+                        gizmo.StartDragging();
+                        m_canvas->StartMoveSelection();
+                    }
+                }
             }
+            if (!m_canvas->IsGizmoActive() || !gizmo.IsHovering())
+            {
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                {
+                    Canvas::ClickModifier mod = Canvas::ClickModifier::Primary;
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
+                    {
+                        mod = Canvas::ClickModifier::Add;
+                    }
+                    else if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl))
+                    {
+                        mod = Canvas::ClickModifier::Secondary;
+                    }
+
+                    xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - m_lastViewportPosition;
+                    sf::Vector2f worldPos = m_viewport->mapPixelToCoords(windowPos);
+                    m_canvas->TrySelect(worldPos, mod);
+                }
+                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    xe::Vector2 windowPos = xe::Vector2(ImGui::GetMousePos()) - m_lastViewportPosition;
+                    sf::Vector2f worldPos = m_viewport->mapPixelToCoords(windowPos);
+                    m_canvas->NewPointCommand(worldPos);
+                }
+            }
+            
         }
         if (ImGui::IsWindowFocused())
         {
             if (ImGui::IsKeyPressed(ImGuiKey_Delete))
             {
                 m_canvas->TryDelete();
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_E))
-            {
-                m_canvas->TempExport();
             }
         }
 

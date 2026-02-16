@@ -70,6 +70,11 @@ void Canvas::OnInspectorGUI()
 			if (m_pointSelection.size() == 2)
 			{
 				GUIConnectionBool(m_pointSelection[0], m_pointSelection[1]);
+				sf::Vector2f difference = m_points[m_pointSelection[1]].coord - m_points[m_pointSelection[0]].coord;
+				float angle = xe::Math::kRadToDeg * std::atanf(difference.y / difference.x);
+				angle = xe::Math::Abs(angle);
+				std::string textContent = "Angle: " + std::to_string(angle);
+				ImGui::Text(textContent.c_str());
 			}
 		}
 	}
@@ -478,23 +483,40 @@ void Canvas::TryDelete()
 	RemoveSelectedPointsCommand();
 }
 
-void Canvas::TempExport()
+void Canvas::StartMoveSelection()
 {
-	sf::RenderTexture tex;
-	sf::ContextSettings winCtx;
-	winCtx.antialiasingLevel = 8;
-	tex.create(512, 512, winCtx);
-	sf::View view = tex.getView();
-	view.setCenter({ 0, 0 });
-	tex.setView(view);
+	std::unordered_map<uint32_t, Canvas::Point> pointsBegin = m_points;
+	m_inspectorCommand = std::make_unique<xe::Command>();
+	m_inspectorCommand->revert = [this, pointsBegin]() {m_points = pointsBegin; };
+}
 
-	tex.clear({ 0,0,0,0 });
-	LineDrawContext ctx(this, &tex);
-	m_connections.ForEach(DrawLineCallback, (void*)&ctx);
-	tex.display();
+void Canvas::MoveSelection(const sf::Vector2f& moveAmount)
+{
+	if (m_useRelationSelect && m_pointSelection.size() == 2)
+	{
+		Point& p = m_points[m_pointSelection[1]];
+		p.coord = p.coord - moveAmount;
+		return;
+	}
 
-	sf::Image img = tex.getTexture().copyToImage();
-	stbi_write_png("arrow.png", 512, 512, 4, img.getPixelsPtr(), 512 * 4);
+	for (const uint32_t id : m_pointSelection)
+	{
+		Point& p = m_points[id];
+		p.coord = p.coord - moveAmount;
+	}
+}
+
+void Canvas::EndMoveSelection()
+{
+	if (m_inspectorCommand == nullptr)
+	{
+		Message::ErrorNotice("Inspector command buffer instance not valid.");
+		return;
+	}
+	std::unordered_map<uint32_t, Canvas::Point> pointsEnd = m_points;
+	m_inspectorCommand->execute = [this, pointsEnd]() {m_points = pointsEnd; };
+	App::Exec(*m_inspectorCommand);
+	m_inspectorCommand = nullptr;
 }
 
 void Canvas::GUIPointPosition(uint32_t id)
