@@ -3,6 +3,7 @@
 #include "Message.h"
 #include "Algorithms.h"
 #include "Mathematics.h"
+#include "Style.h"
 
 #include <XephTools/FileBrowser.h>
 
@@ -86,10 +87,15 @@ void App::_Start()
     }
 
     ImGui::SFML::Init(*m_window);
-
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
+    io.Fonts->Clear();
+    io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", 20.0f);
+    ImGui::SFML::UpdateFontTexture();
+    
+    
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    SetUIStyle();
     m_canvas = std::make_unique<Canvas>();
     m_canvas->Initialize();
 }
