@@ -4,6 +4,7 @@
 #include "Algorithms.h"
 #include "Mathematics.h"
 #include "Style.h"
+#include "HelpWindow.h"
 
 #include <XephTools/FileBrowser.h>
 
@@ -12,6 +13,8 @@
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
 #endif // WIN32
+
+#define APP_VER std::string("beta-0.1")
 
 static App* s_inst = nullptr;
 
@@ -134,7 +137,7 @@ void App::_Update()
                 m_scrollDelta = event.mouseWheelScroll.delta;
             }
 
-            if (event.type == sf::Event::KeyPressed && sf::Keyboard::isKeyPressed(sf::Keyboard::LControl))
+            if (event.type == sf::Event::KeyPressed && (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl)))
             {
                 if (event.key.code == sf::Keyboard::Key::Z)
                 {
@@ -143,6 +146,29 @@ void App::_Update()
                 else if (event.key.code == sf::Keyboard::Key::Y)
                 {
                     _Redo();
+                }
+                else if (event.key.code == sf::Keyboard::Key::N)
+                {
+                    _New();
+                }
+                else if (event.key.code == sf::Keyboard::Key::O)
+                {
+                    _Load();
+                }
+                else if (event.key.code == sf::Keyboard::Key::S)
+                {
+                    _Save(sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift));
+                }
+                else if (event.key.code == sf::Keyboard::Key::E)
+                {
+                    m_showExport = true;
+                }
+                else if (event.key.code == sf::Keyboard::Key::Q)
+                {
+                    if (_CheckSave())
+                    {
+                        m_window->close();
+                    }
                 }
             }
         }
@@ -157,7 +183,7 @@ void App::_Update()
                 _New();
             }
 
-            if (ImGui::MenuItem("Open...", "Ctrl+O"))
+            if (ImGui::MenuItem("Open", "Ctrl+O"))
             {
                 _Load();
             }
@@ -181,7 +207,7 @@ void App::_Update()
 
             ImGui::Separator();
 
-            if (ImGui::MenuItem("Exit"))
+            if (ImGui::MenuItem("Exit", "Ctrl+Q"))
             {
                 if (_CheckSave())
                 {
@@ -189,6 +215,38 @@ void App::_Update()
                 }
             }
 
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Edit"))
+        {
+            if (ImGui::MenuItem("Undo", "Ctrl+Z"))
+            {
+                _Undo();
+            }
+            if (ImGui::MenuItem("Redo", "Ctrl+Y"))
+            {
+                _Redo();
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Help"))
+        {
+            std::string versionText = "Version: " + APP_VER;
+            if (ImGui::MenuItem("Show Controls"))
+            {
+                m_showHelp = true;
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("GitHub Repository"))
+            {
+                ShellExecuteA(nullptr, "open", "https://github.com/jon-bogert/LineDesigner", nullptr, nullptr, SW_SHOWDEFAULT);
+            }
+            if (ImGui::MenuItem("GitHub Download"))
+            {
+                ShellExecuteA(nullptr, "open", "https://github.com/jon-bogert/LineDesigner/releases", nullptr, nullptr, SW_SHOWDEFAULT);
+            }
+            ImGui::Separator();
+            ImGui::MenuItem(versionText.c_str(), nullptr, false, false);
             ImGui::EndMenu();
         }
         
@@ -329,6 +387,13 @@ void App::_Update()
         {
             ImGui::Begin("Export", &m_showExport, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking);
             m_canvas->OnExportGUI();
+            ImGui::End();
+        }
+
+        if (m_showHelp)
+        {
+            ImGui::Begin("Help", &m_showHelp, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking);
+            HelpWindowGUI();
             ImGui::End();
         }
 

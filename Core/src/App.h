@@ -68,4 +68,5 @@ private:
     int m_scrollDelta = 0;
     bool m_isSaved = true;
     bool m_showExport = false;
+    bool m_showHelp = false;
 };

@@ -1,0 +1,26 @@
+version: 0
+color: [100, 178, 228, 255]
+thickness: 21
+mirror-mask: 03
+points:
+  - id: 00000001
+    data: [0, -200]
+  - id: b8c5e844
+    data: [0, 0]
+  - id: 00000002
+    data: [100, -2]
+  - id: 64358aff
+    data: [45, -200]
+  - id: 9bedc55f
+    data: [38.8094978, 0]
+  - id: 414d010d
+    data: [131.619019, -28]
+  - id: 6cb6c8d6
+    data: [241, -28]
+  - id: 0fcb39fb
+    data: [0, -69.5239105]
+connections:
+  - [00000001, 00000002]
+  - [64358aff, 414d010d]
+  - [9bedc55f, 0fcb39fb]
+  - [6cb6c8d6, 414d010d]
