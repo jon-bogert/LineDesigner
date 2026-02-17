@@ -27,6 +27,8 @@ private:
 		YAxis,
 	};
 
+	std::unique_ptr<unsigned char[]> m_arrowData;
+	size_t m_arrowDataCount = 0;
 	sf::Texture m_arrowTex;
 	sf::Sprite m_xArrow;
 	sf::Sprite m_yArrow;

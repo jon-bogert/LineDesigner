@@ -5,8 +5,11 @@
 #include "Mathematics.h"
 #include "Style.h"
 #include "HelpWindow.h"
+#include "DefaultINI.h"
+#include "favicon_x256_png.h"
 
 #include <XephTools/FileBrowser.h>
+#include <XephTools/AppData.h>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -81,10 +84,15 @@ void App::_Start()
     m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(windowDim.x, windowDim.y), "Line Designer", sf::Style::Default);
     //window->setFramerateLimit(60);
 
+    res::favicon_x256_png(m_iconData, m_iconDataSize);
+    m_iconImage.loadFromMemory(m_iconData.get(), m_iconDataSize);
+    m_window->setIcon(m_iconImage.getSize().x, m_iconImage.getSize().y, m_iconImage.getPixelsPtr());
+
 #ifdef WIN32
     HWND hWnd = m_window->getSystemHandle();
     BOOL useDark = TRUE;
     DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+    
 #endif // WIN32
 
     m_viewport = std::make_unique<sf::RenderTexture>();
@@ -95,8 +103,23 @@ void App::_Start()
         m_viewport->setView(view);
     }
 
+    //ImGui::CreateContext();
     ImGui::SFML::Init(*m_window);
     ImGuiIO& io = ImGui::GetIO();
+#ifndef _DEBUG
+    m_inifile = _APPDATA_ + "/LineDesigner/window.ini";
+    if (!std::filesystem::exists(m_inifile))
+    {
+        ImGui::LoadIniSettingsFromMemory(s_defaultINIContents.c_str(), s_defaultINIContents.length());
+    }
+    io.IniFilename = m_inifile.c_str();
+#else // !_DEBUG
+    if (!std::filesystem::exists("imgui.ini"))
+    {
+        ImGui::LoadIniSettingsFromMemory(s_defaultINIContents.c_str(), s_defaultINIContents.length());
+    }
+#endif // !_DEBUG
+
 
     io.Fonts->Clear();
     std::filesystem::path fontpath = "C:\\Windows\\Fonts\\" + m_prefs.fontName;

@@ -60,6 +60,8 @@ private:
     xe::CommandStack m_cmdStack;
 
     AppPrefs m_prefs;
+    std::string m_inifile;
+
     sf::ContextSettings m_windowCtx;
     sf::Clock m_deltaClock;
     sf::Vector2i m_lastMousePos;
@@ -69,4 +71,8 @@ private:
     bool m_isSaved = true;
     bool m_showExport = false;
     bool m_showHelp = false;
+
+    std::unique_ptr<unsigned char[]> m_iconData;
+    size_t m_iconDataSize = 0;
+    sf::Image m_iconImage;
 };

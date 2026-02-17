@@ -1,5 +1,6 @@
 #pragma once
 
+#include <XephTools/AppData.h>
 #include <yaml-cpp/yaml.h>
 
 #include <filesystem>
@@ -20,7 +21,16 @@ struct AppPrefs
 
 	void Load()
 	{
+#ifdef _DEBUG
 		std::ifstream file("prefs.yaml");
+#else // _DEBUG
+		std::filesystem::path path = _APPDATA_ + "/LineDesigner/prefs.yaml";
+		if (!std::filesystem::exists(path.parent_path()))
+		{
+			std::filesystem::create_directories(path.parent_path());
+		}
+		std::ifstream file(path);
+#endif // DEBUG
 		if (!file.is_open())
 			return;
 
@@ -58,7 +68,16 @@ struct AppPrefs
 		root["window-size"].push_back(windowHeight);
 		root["window-size"].SetStyle(YAML::EmitterStyle::Flow);
 
+#ifdef _DEBUG
 		std::ofstream file("prefs.yaml");
+#else // _DEBUG
+		std::filesystem::path path = _APPDATA_ + "/LineDesigner/prefs.yaml";
+		if (!std::filesystem::exists(path.parent_path()))
+		{
+			std::filesystem::create_directories(path.parent_path());
+		}
+		std::ofstream file(path);
+#endif // DEBUG
 		if (!file.is_open())
 		{
 			return;

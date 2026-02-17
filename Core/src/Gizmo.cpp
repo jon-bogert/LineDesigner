@@ -1,4 +1,5 @@
 #include "Gizmo.h"
+#include "arrow_png.h"
 
 #define GIZ_VISUAL_SCALE 0.5f
 #define GIZ_CENTER_RAD 10.f
@@ -7,7 +8,8 @@
 
 void Gizmo::Initialize()
 {
-	m_arrowTex.loadFromFile("assets/arrow.png");
+	res::arrow_png(m_arrowData, m_arrowDataCount);
+	m_arrowTex.loadFromMemory(m_arrowData.get(), m_arrowDataCount);
 	m_xArrow.setTexture(m_arrowTex);
 	m_yArrow.setTexture(m_arrowTex);
 
