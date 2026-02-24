@@ -525,7 +525,7 @@ void Canvas::GUIPointPosition(uint32_t id)
 	Point& point = m_points[id];
 	sf::Vector2f val = point.coord;
 	ImGui::DragFloat2(label.c_str(), &point.coord.x);
-	if (ImGui::IsItemClicked())
+	if (ImGui::IsItemActivated())
 	{
 		m_inspectorCommand = std::make_unique<xe::Command>();
 		m_inspectorCommand->revert = [this, id, val]() {m_points[id].coord = val; };
@@ -573,7 +573,7 @@ void Canvas::GUILineThickness()
 {
 	float val = m_lineWidth;
 	ImGui::DragFloat("Line Thickness", &m_lineWidth, 1.f, 0.f);
-	if (ImGui::IsItemClicked())
+	if (ImGui::IsItemActivated())
 	{
 		m_inspectorCommand = std::make_unique<xe::Command>();
 		m_inspectorCommand->revert = [this, val]() { m_lineWidth = val; };

@@ -17,7 +17,7 @@
 #pragma comment(lib, "dwmapi.lib")
 #endif // WIN32
 
-#define APP_VER std::string("beta-0.1")
+#define APP_VER std::string("beta-0.1.1")
 
 static App* s_inst = nullptr;
 
@@ -499,6 +499,7 @@ bool App::_Save(bool forceNew)
         xe::FileBrowser browser;
         if (!prefs.lastSave.empty())
         {
+            std::filesystem::path startPath = prefs.lastSave / ((m_canvas->GetPath().empty()) ? m_canvas->GetPath() : L"line-design.lines");
             browser.SetStartPath(prefs.lastSave);
         }
 
