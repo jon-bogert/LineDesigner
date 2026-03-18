@@ -17,7 +17,7 @@
 #pragma comment(lib, "dwmapi.lib")
 #endif // WIN32
 
-#define APP_VER std::string("beta-0.1.1")
+#define APP_VER std::string("beta-0.1.2")
 
 static App* s_inst = nullptr;
 

@@ -14,6 +14,7 @@ struct Exporter
 public:
 	sf::Color backgroundColor = sf::Color::Transparent;
 	sf::Vector2i dimensions = {1024, 1024};
+	sf::Vector2f offset = { 0.f, 0.f };
 	float scale = 1.f;
 
 	sf::RenderTexture target;
@@ -30,7 +31,7 @@ public:
 		target.create((uint32_t)dimensions.x, (uint32_t)dimensions.y, ctx);
 
 		sf::View view = target.getView();
-		view.setCenter({ 0.f, 0.f });
+		view.setCenter(offset);
 		view.setSize((sf::Vector2f)dimensions * (1.f / scale));
 		target.setView(view);
 		target.clear(backgroundColor);
@@ -46,6 +47,7 @@ public:
 		ImGui::Separator();
 
 		ImGui::DragInt2("Image Size##Export", &dimensions.x);
+		ImGui::DragFloat2("Image Position##Export", &offset.x);
 		ImGui::DragFloat("Content Scale##Export", &scale, 0.001);
 		xe::Color bgColor = xe::Color8(backgroundColor);
 		if (ImGui::ColorEdit4("Background Color##Export", &bgColor.r))
