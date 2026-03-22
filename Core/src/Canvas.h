@@ -2,6 +2,7 @@
 
 #include "ConnectionGraph.h"
 #include "LineShape.h"
+#include "ArcLineShape.h"
 #include "Gizmo.h"
 
 #include <SFML/Graphics.hpp>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifndef MIRROR_DEFS
@@ -39,11 +41,12 @@ class Canvas
 	struct LineDrawContext
 	{
 		LineDrawContext() = default;
-		LineDrawContext(Canvas* self, sf::RenderTarget* target) : self(self), target(target), index(0) {}
+		LineDrawContext(Canvas* self, sf::RenderTarget* target) : self(self), target(target), straightIndex(0) {}
 
 		Canvas* self = nullptr;
 		sf::RenderTarget* target = nullptr;
-		size_t index = 0;
+		size_t straightIndex = 0;
+		size_t arcIndex = 0;
 	};
 
 public:
@@ -73,7 +76,6 @@ public:
 	void RemoveConnection(const uint32_t idA, const uint32_t idB);
 
 	void NewPointCommand(const sf::Vector2f coord);
-	void RemovePointCommand(uint32_t id);
 	void RemoveSelectedPointsCommand();
 
 	void TrySelect(const sf::Vector2f pos, const ClickModifier mod = ClickModifier::Primary);
@@ -96,13 +98,16 @@ private:
 	void GUILineThickness();
 	void GUILineColor();
 	void GUISetMirrors();
+	void GUIConnectionType(uint32_t idA, uint32_t idB);
 
 	void DrawGrid(sf::RenderTarget& target);
 	void DrawOrigin(sf::RenderTarget& target);
 	bool PrepMirrorLine(sf::RectangleShape& line, const sf::FloatRect& bounds, float scale, float angle);
 	void DrawMirrorLines(sf::RenderTarget& target);
 
-	static void DrawLineCallback(uint32_t idA, uint32_t idB, void* data);
+	static void DrawLineCallback(uint32_t idA, uint32_t idB, ConnectionInfo& info, void* data);
+	static void DrawStraightLine(uint32_t idA, uint32_t idB, ConnectionInfo& info, LineDrawContext& ctx);
+	static void DrawArcLine(uint32_t idA, uint32_t idB, ConnectionInfo& info, LineDrawContext& ctx);
 	static void MirrorLine(std::vector<size_t>& lineBuffer, std::vector<size_t>& tempBuffer, LineDrawContext& ctx, const std::function<void(sf::Vector2f&)>& transformPoint);
 	static void ReflectAcrossAngle(sf::Vector2f& v, float degrees);
 
@@ -110,7 +115,8 @@ private:
 
 	std::unordered_map<uint32_t, Point> m_points;
 	ConnectionGraph m_connections;
-	std::vector<LineShape> m_lineBuffer;
+	std::vector<LineShape> m_straightLineBuffer;
+	std::vector<ArcLineShape> m_arcLineBuffer;
 
 	std::vector<uint32_t> m_pointSelection;
 	std::unique_ptr<xe::Command> m_inspectorCommand = nullptr;

@@ -2,60 +2,121 @@
 
 bool ConnectionGraph::HasConnection(const uint32_t idA, const uint32_t idB) const
 {
-    auto iterA = m_nodes.find(idA);
-    if (iterA == m_nodes.end())
-        return false;
+    uint64_t id1 = CreateConnectionID(idA, idB);
+    uint64_t id2 = CreateConnectionID(idB, idA);
 
-    return iterA->second.connections.find(idB) != iterA->second.connections.end();
+    if (m_connections.find(id1) != m_connections.end())
+    {
+        return true;
+    }
+
+    return m_connections.find(id2) != m_connections.end();
 }
 
 void ConnectionGraph::CreateConnection(const uint32_t idA, const uint32_t idB)
 {
-    Node& nodeA = m_nodes[idA];
-    Node& nodeB = m_nodes[idB];
-
-    nodeA.connections.insert(idB);
-    nodeB.connections.insert(idA);
+    uint64_t connID = CreateConnectionID(idA, idB);
+    ConnectionInfo& nodeA = m_connections[connID];
 }
 
 void ConnectionGraph::RemoveConnection(const uint32_t idA, const uint32_t idB)
 {
-    Node& nodeA = m_nodes[idA];
-    Node& nodeB = m_nodes[idB];
+    uint64_t id1 = CreateConnectionID(idA, idB);
+    uint64_t id2 = CreateConnectionID(idB, idA);
 
-    nodeA.connections.erase(idB);
-    nodeB.connections.erase(idA);
+    if (m_connections.find(id1) != m_connections.end())
+    {
+        m_connections.erase(id1);
+        return;
+    }
 
-    if (nodeA.connections.empty())
-    {
-        m_nodes.erase(idA);
-    }
-    if (nodeB.connections.empty())
-    {
-        m_nodes.erase(idB);
-    }
+    if (m_connections.find(id2) == m_connections.end())
+        return;
+
+    m_connections.erase(id2);
 }
 
-void ConnectionGraph::ForEach(const std::function<void(const uint32_t, const uint32_t, void*)>& visitor, void* userData)
+bool ConnectionGraph::HasID(uint32_t id)
 {
-    ResetVisitFlags();
-    for (auto& nodePair : m_nodes)
+    for (const auto& connPair : m_connections)
     {
-        nodePair.second.visited = true;
-        for (const uint32_t dest : nodePair.second.connections)
-        {
-            if (m_nodes[dest].visited)
-                continue;
+        uint32_t idA, idB;
+        BreakConnectionID(connPair.first, idA, idB);
 
-            visitor(nodePair.first, dest, userData);
+        if (idA != id && idB != id)
+            continue;
+
+        return true;
+    }
+    return false;
+}
+
+std::vector<uint32_t> ConnectionGraph::GatherConnectedIDs(uint32_t id)
+{
+    std::vector<uint32_t> result;
+
+    for (const auto& connPair : m_connections)
+    {
+        uint32_t idA, idB;
+        BreakConnectionID(connPair.first, idA, idB);
+
+        if (idA == id)
+        {
+            result.push_back(idB);
+            continue;
+        }
+        if (idB == id)
+        {
+            result.push_back(idA);
         }
     }
+    return result;
 }
 
-void ConnectionGraph::ResetVisitFlags()
+void ConnectionGraph::ForEach(const ConnectionCallback& visitor, void* userData)
 {
-    for (auto& nodePair : m_nodes)
+    for (auto& nodePair : m_connections)
     {
-        nodePair.second.visited = false;
+        uint32_t idA, idB;
+        BreakConnectionID(nodePair.first, idA, idB);
+        visitor(idA, idB, nodePair.second, userData);
     }
+}
+
+uint64_t ConnectionGraph::FindConnectionID(const uint32_t idA, uint32_t idB)
+{
+    uint64_t id1 = CreateConnectionID(idA, idB);
+    uint64_t id2 = CreateConnectionID(idB, idA);
+
+    if (m_connections.find(id1) != m_connections.end())
+        return id1;
+
+    if (m_connections.find(id2) != m_connections.end())
+        return id2;
+
+    return 0;
+}
+
+uint64_t ConnectionGraph::CreateConnectionID(const uint32_t idA, uint32_t idB)
+{
+    uint64_t result{};
+    result |= (uint64_t)(idA) << (sizeof(uint32_t) * 8);
+    result |= (uint64_t)(idB);
+    return result;
+}
+
+void ConnectionGraph::BreakConnectionID(const uint64_t id, uint32_t& out_idA, uint32_t& out_idB)
+{
+    out_idA = (uint32_t)(id >> (sizeof(uint32_t) * 8));
+    out_idB = (uint32_t)(id & 0x00000000FFFFFFFF);
+}
+
+ConnectionInfo& ConnectionGraph::operator[](std::pair<uint32_t, uint32_t> idPair)
+{
+    uint64_t id = FindConnectionID(idPair.first, idPair.second);
+
+    if (id != 0)
+        return m_connections[id];
+
+    return m_connections[CreateConnectionID(idPair.first, idPair.second)];
 }

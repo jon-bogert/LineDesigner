@@ -8,7 +8,6 @@
 
 #include <yaml-cpp/yaml.h>
 #include <imgui.h>
-#include <stb_image_write.h>
 
 #include <fstream>
 
@@ -75,6 +74,23 @@ void Canvas::OnInspectorGUI()
 				angle = xe::Math::Abs(angle);
 				std::string textContent = "Angle: " + std::to_string(angle);
 				ImGui::Text(textContent.c_str());
+				
+				if (m_connections.HasConnection(m_pointSelection[0], m_pointSelection[1]))
+				{
+					ConnectionInfo& info = m_connections[{m_pointSelection[0], m_pointSelection[1]}];
+					ImGui::Separator();
+					GUIConnectionType(m_pointSelection[0], m_pointSelection[1]);
+					if (info.type == ConnectionType::ArcLine)
+					{
+						ImGui::DragFloat("Arc Radius", &info.radius, 0.001f, -1.f, 1.f);
+						ImGui::Checkbox("Invert Arc", &info.invertArc);
+						int segCount = (int)info.segmentCount;
+						if (ImGui::DragInt("SegmentCount", &segCount, 1, INT_MAX))
+						{
+							info.segmentCount = (uint32_t)xe::Math::Max(segCount, 1);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -264,7 +280,7 @@ bool Canvas::Save(const std::filesystem::path& path)
 		root["points"].push_back(pointEntry);
 	}
 
-	auto visitor = [&](uint32_t idA, uint32_t idB, void* ctxPtr)
+	auto visitor = [&](uint32_t idA, uint32_t idB, ConnectionInfo& info, void* ctxPtr)
 		{
 			YAML::Node connectData;
 			connectData.push_back(Algorithm::UInt32ToHex(idA));
@@ -315,17 +331,11 @@ uint32_t Canvas::AddPoint(const sf::Vector2f& coord, uint32_t id)
 
 void Canvas::RemovePoint(uint32_t id)
 {
-	if (m_connections.HasID(id))
+	std::vector<uint32_t> connections = m_connections.GatherConnectedIDs(id);
+	for (uint32_t connID : connections)
 	{
-		ConnectionGraph::Node& node = m_connections[id];
-		for (const uint32_t dest : node.connections)
-		{
-			m_connections.RemoveConnection(id, dest);
-			if (!m_connections.HasID(id)) // `node.connections` may be destroyed, prevent read
-				break;
-		}
+		m_connections.RemoveConnection(id, connID);
 	}
-
 	m_points.erase(id);
 }
 
@@ -359,29 +369,6 @@ void Canvas::NewPointCommand(const sf::Vector2f coord)
 
 	m_pointSelection.resize(1);
 	m_pointSelection[0] = id;
-}
-
-void Canvas::RemovePointCommand(uint32_t id)
-{
-	xe::Command cmd;
-	sf::Vector2f coord = m_points[id].coord;
-	if (m_connections.HasID(id))
-	{
-		std::unordered_set<uint32_t>& connections = m_connections[id].connections;
-		cmd.revert = [this, connections, id, coord]
-			{
-				AddPoint(coord, id);
-				AddMultipleConnections(id, connections);
-			};
-	}
-	else
-	{
-		cmd.revert = [this, id, coord] { AddPoint(coord, id); };
-	}
-	cmd.execute = [&, id]() { RemovePoint(id); };
-
-	App::Exec(cmd);
-	m_pointSelection.clear();
 }
 
 void Canvas::RemoveSelectedPointsCommand()
@@ -473,12 +460,6 @@ void Canvas::TryDelete()
 {
 	if (m_pointSelection.empty())
 		return;
-
-	if (m_pointSelection.size() == 1)
-	{
-		RemovePointCommand(m_pointSelection[0]);
-		return;
-	}
 
 	RemoveSelectedPointsCommand();
 }
@@ -695,6 +676,22 @@ void Canvas::GUISetMirrors()
 	}
 }
 
+void Canvas::GUIConnectionType(uint32_t idA, uint32_t idB)
+{
+	ConnectionInfo& info = m_connections[{idA, idB}];
+	int selection = (int)info.type;
+	ConnectionType oldType = info.type;
+
+	if (!ImGui::Combo("Line Type", &selection, "Straight\0Arc\0"))
+		return;
+
+	xe::Command cmd;
+	cmd.revert = [this, idA, idB, oldType]() { m_connections[{idA, idB}].type = oldType; };
+	cmd.execute = [this, idA, idB, selection]() { m_connections[{idA, idB}].type = (ConnectionType)selection; };
+
+	App::Exec(cmd);
+}
+
 void Canvas::DrawGrid(sf::RenderTarget& target)
 {
 	sf::View currView = target.getView();
@@ -886,15 +883,29 @@ void Canvas::DrawMirrorLines(sf::RenderTarget& target)
 
 }
 
-void Canvas::DrawLineCallback(uint32_t idA, uint32_t idB, void* data)
+void Canvas::DrawLineCallback(uint32_t idA, uint32_t idB, ConnectionInfo& info, void* data)
 {
 	LineDrawContext& ctx = *(LineDrawContext*)data;
+	if (info.type == ConnectionType::Line)
+	{
+		DrawStraightLine(idA, idB, info, ctx);
+		return;
+	}
+	if (info.type == ConnectionType::ArcLine)
+	{
+		DrawArcLine(idA, idB, info, ctx);
+		return;
+	}
+}
+
+void Canvas::DrawStraightLine(uint32_t idA, uint32_t idB, ConnectionInfo& info, LineDrawContext& ctx)
+{
 	Canvas& self = *ctx.self;
 
 	std::vector<size_t> lineBuffer;
-	LineShape* currLine = (ctx.index == self.m_lineBuffer.size()) ? &self.m_lineBuffer.emplace_back() : &self.m_lineBuffer[ctx.index];
-	lineBuffer.push_back(ctx.index);
-	ctx.index += 1;
+	LineShape* currLine = (ctx.straightIndex == self.m_straightLineBuffer.size()) ? &self.m_straightLineBuffer.emplace_back() : &self.m_straightLineBuffer[ctx.straightIndex];
+	lineBuffer.push_back(ctx.straightIndex);
+	ctx.straightIndex += 1;
 
 	currLine->SetParameters(self.m_points[idA].coord, self.m_points[idB].coord, self.m_lineWidth, 10);
 
@@ -941,8 +952,25 @@ void Canvas::DrawLineCallback(uint32_t idA, uint32_t idB, void* data)
 
 	for (size_t i : lineBuffer)
 	{
-        self.m_lineBuffer[i].setFillColor(self.m_lineColor);
-	    ctx.target->draw(self.m_lineBuffer[i]);
+		self.m_straightLineBuffer[i].setFillColor(self.m_lineColor);
+		ctx.target->draw(self.m_straightLineBuffer[i]);
+	}
+}
+
+void Canvas::DrawArcLine(uint32_t idA, uint32_t idB, ConnectionInfo& info, LineDrawContext& ctx)
+{
+	Canvas& self = *ctx.self;
+
+	std::vector<size_t> lineBuffer;
+	ArcLineShape* currLine = (ctx.arcIndex == self.m_arcLineBuffer.size()) ? &self.m_arcLineBuffer.emplace_back() : &self.m_arcLineBuffer[ctx.arcIndex];
+	lineBuffer.push_back(ctx.arcIndex);
+	ctx.arcIndex += 1;
+
+	currLine->SetParameters(self.m_points[idA].coord, self.m_points[idB].coord, self.m_lineWidth, info.radius, info.invertArc, info.segmentCount, 10, self.m_lineColor);
+
+	for (size_t i : lineBuffer)
+	{
+		ctx.target->draw(self.m_arcLineBuffer[i]);
 	}
 }
 
@@ -950,16 +978,16 @@ void Canvas::MirrorLine(std::vector<size_t>& lineBuffer, std::vector<size_t>& te
 {
 	for (size_t i : lineBuffer)
 	{
-		LineShape* currLine = (ctx.index == ctx.self->m_lineBuffer.size()) ? &ctx.self->m_lineBuffer.emplace_back() : &ctx.self->m_lineBuffer[ctx.index];
-		sf::Vector2f pointA = ctx.self->m_lineBuffer[i].GetStart();
-		sf::Vector2f pointB = ctx.self->m_lineBuffer[i].GetEnd();
+		LineShape* currLine = (ctx.straightIndex == ctx.self->m_straightLineBuffer.size()) ? &ctx.self->m_straightLineBuffer.emplace_back() : &ctx.self->m_straightLineBuffer[ctx.straightIndex];
+		sf::Vector2f pointA = ctx.self->m_straightLineBuffer[i].GetStart();
+		sf::Vector2f pointB = ctx.self->m_straightLineBuffer[i].GetEnd();
 
 		transformPoint(pointA);
 		transformPoint(pointB);
 
 		currLine->SetParameters(pointA, pointB, ctx.self->m_lineWidth, 10);
-		tempBuffer.push_back(ctx.index);
-		ctx.index += 1;
+		tempBuffer.push_back(ctx.straightIndex);
+		ctx.straightIndex += 1;
 	}
 	lineBuffer.insert(lineBuffer.end(), std::move_iterator(tempBuffer.begin()), std::move_iterator(tempBuffer.end()));
 	tempBuffer.clear();

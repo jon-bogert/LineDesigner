@@ -825,10 +825,12 @@ namespace xe
 
 		//----------------------------------------------------------------------------------------------------
 
+		inline bool XOR(const bool a, const bool b) { return (a && !b) || (b && !a); }
 
 		template <typename T> inline T Clamp(T value, T min, T max) { return Max(min, Min(max, value)); }
 
 		inline float Max(float a, float b) { return (a >= b) ? a : b; }
+		inline int Max(int a, int b) { return (a >= b) ? a : b; }
 		inline float Min(float a, float b) { return (a <= b) ? a : b; }
 		inline float Abs(float value) { return (value >= 0.0f) ? value : -value; }
 		inline float Sign(float value) { return (value >= 0.0f) ? 1.0f : -1.0f; }
@@ -879,6 +881,7 @@ namespace xe
 
 		inline Vector3 GetPoint(const Ray& ray, float distance) { return ray.org + (ray.dir * distance); }
 
+		inline float Lerp(const float f0, const float f1, const float t) { return f0 + ((f1 - f0) * t); }
 		inline Vector2 Lerp(const Vector2& v0, const Vector2& v1, float t) { return v0 + ((v1 - v0) * t); }
 		inline Vector3 Lerp(const Vector3& v0, const Vector3& v1, float t) { return v0 + ((v1 - v0) * t); }
 		inline Quaternion Lerp(Quaternion q0, Quaternion q1, float t) { return q0 * (1.0f - t) + (q1 * t); }

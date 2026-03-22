@@ -24,8 +24,8 @@ public:
 	{
 		sf::ContextSettings ctx;
 		ctx.antialiasingLevel = 8;
-		dimensions.x = xe::Math::Max(dimensions.x, 0.f);
-		dimensions.y = xe::Math::Max(dimensions.y, 0.f);
+		dimensions.x = xe::Math::Max(dimensions.x, 0);
+		dimensions.y = xe::Math::Max(dimensions.y, 0);
 		scale = xe::Math::Max(scale, 0.001f);
 
 		target.create((uint32_t)dimensions.x, (uint32_t)dimensions.y, ctx);
