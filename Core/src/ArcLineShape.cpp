@@ -72,49 +72,81 @@ void ArcLineShape::draw(sf::RenderTarget& target, sf::RenderStates states) const
 
 void ArcLineShape::Calculate()
 {
-	m_vertices.clear();
-	m_vertices.setPrimitiveType(sf::TriangleStrip);
+    m_vertices.clear();
+    m_vertices.setPrimitiveType(sf::Triangles);
 
-	// 1. Find the center and radius
-	sf::Vector2f center = (m_start + m_end) * 0.5f;
-	sf::Vector2f dir = m_end - m_start;
-	float halfDist = std::sqrt(dir.x * dir.x + dir.y * dir.y) / 2.0f;
-	float maxRadius = halfDist * MAX_RADIUS_MULT;
-	float radius = xe::Math::Lerp(maxRadius, halfDist, xe::Math::Abs(m_radius));
-	
-	sf::Vector2f normal = xe::Math::Normalize((m_radius < 0.f) ? sf::Vector2f(dir.y, -dir.x) : sf::Vector2(-dir.y, dir.x));
-	//sf::Vector2f normal = xe::Math::Normalize(sf::Vector2f(dir.y, -dir.x));
-	sf::Vector2f pivot = center + (normal * xe::Math::Sqrt(xe::Math::Sqr(radius) - xe::Math::Sqr(halfDist)));
+    // 1. Core Logic (Pivot and Radius)
+    sf::Vector2f dir = m_end - m_start;
+    float halfDist = std::sqrt(dir.x * dir.x + dir.y * dir.y) / 2.0f;
+    float radius = xe::Math::Lerp(halfDist * MAX_RADIUS_MULT, halfDist, xe::Math::Abs(m_radius));
 
-	// 2. Determine angles
-	float startAngle = std::atan2(m_start.y - pivot.y, m_start.x - pivot.x);
-	float endAngle = std::atan2(m_end.y - pivot.y, m_end.x - pivot.x);
+    sf::Vector2f normal = (m_radius < 0.f) ? sf::Vector2f(dir.y, -dir.x) : sf::Vector2f(-dir.y, dir.x);
+    normal = xe::Math::Normalize(normal);
 
-	if (xe::Math::XOR(m_radius < 0.f, m_invertArc))
-	{
-		float tmp = startAngle;
-		startAngle = endAngle;
-		endAngle = tmp;
-	
-	}
+    float pivotDist = std::sqrt(std::max(0.f, radius * radius - halfDist * halfDist));
+    sf::Vector2f pivot = ((m_start + m_end) * 0.5f) + (normal * pivotDist);
 
-	// Handle wrap-around to ensure we rotate the correct way
-	if (endAngle < startAngle) endAngle += 2.0f * 3.14159f;
+    float startAngle = std::atan2(m_start.y - pivot.y, m_start.x - pivot.x);
+    float endAngle = std::atan2(m_end.y - pivot.y, m_end.x - pivot.x);
 
-	// 3. Generate Vertices
-	for (int i = 0; i <= m_segmentCount; ++i) {
-		float t = (float)i / (float)m_segmentCount;
-		float currentAngle = startAngle + t * (endAngle - startAngle);
+    if (xe::Math::XOR(m_radius < 0.f, m_invertArc))
+    {
+        std::swap(startAngle, endAngle);
+    }
 
-		// Unit vector for the current direction
-		sf::Vector2f unitDir(std::cos(currentAngle), std::sin(currentAngle));
+    while (endAngle < startAngle)
+    {
+        endAngle += xe::Math::kTwoPi;
+    }
 
-		// Outer vertex
-		sf::Vector2f outerPos = pivot + unitDir * (radius + m_width / 2.0f);
-		m_vertices.append(sf::Vertex(outerPos, m_color));
+    auto addTriangle = [&](sf::Vector2f p1, sf::Vector2f p2, sf::Vector2f p3)
+    {
+        m_vertices.append(sf::Vertex(p1, m_color));
+        m_vertices.append(sf::Vertex(p2, m_color));
+        m_vertices.append(sf::Vertex(p3, m_color));
+    };
 
-		// Inner vertex
-		sf::Vector2f innerPos = pivot + unitDir * (radius - m_width / 2.0f);
-		m_vertices.append(sf::Vertex(innerPos, m_color));
-	}
+    // 2. Generate Main Arc Segments
+    for (int i = 0; i < m_segmentCount; ++i)
+    {
+        float t1 = (float)i / m_segmentCount;
+        float t2 = (float)(i + 1) / m_segmentCount;
+        float ang1 = startAngle + t1 * (endAngle - startAngle);
+        float ang2 = startAngle + t2 * (endAngle - startAngle);
+    
+        sf::Vector2f dir1(std::cos(ang1), std::sin(ang1));
+        sf::Vector2f dir2(std::cos(ang2), std::sin(ang2));
+    
+        sf::Vector2f outer1 = pivot + dir1 * (radius + m_width * 0.5f);
+        sf::Vector2f inner1 = pivot + dir1 * (radius - m_width * 0.5f);
+        sf::Vector2f outer2 = pivot + dir2 * (radius + m_width * 0.5f);
+        sf::Vector2f inner2 = pivot + dir2 * (radius - m_width * 0.5f);
+    
+        // Triangle 1
+        addTriangle(inner1, outer1, outer2);
+        // Triangle 2
+        addTriangle(inner1, outer2, inner2);
+    }
+
+    // 3. Generate End Caps
+    auto addCap = [&](sf::Vector2f center, float baseAngle, bool isStart)
+    {
+        float angleStep = 3.14159265f / m_capVertCount;
+        // Flip the cap direction for the start vs end
+        float dirMod = isStart ? -1.0f : 1.0f;
+
+        for (int i = 0; i < m_capVertCount; ++i)
+        {
+            float a1 = baseAngle + (i * angleStep * dirMod);
+            float a2 = baseAngle + ((i + 1) * angleStep * dirMod);
+
+            addTriangle(
+                center,
+                center + sf::Vector2f(std::cos(a1), std::sin(a1)) * (m_width * 0.5f),
+                center + sf::Vector2f(std::cos(a2), std::sin(a2)) * (m_width * 0.5f)
+            );
+        }
+    };
+    addCap(m_start, startAngle, true);
+    addCap(m_end, endAngle, false);
 }
