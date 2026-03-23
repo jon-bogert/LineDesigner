@@ -99,6 +99,8 @@ private:
 	void GUILineColor();
 	void GUISetMirrors();
 	void GUIConnectionType(uint32_t idA, uint32_t idB);
+	void GUIArcRadius(uint32_t idA, uint32_t idB);
+	void GUIArcSegments(uint32_t idA, uint32_t idB);
 
 	void DrawGrid(sf::RenderTarget& target);
 	void DrawOrigin(sf::RenderTarget& target);

@@ -82,13 +82,8 @@ void Canvas::OnInspectorGUI()
 					GUIConnectionType(m_pointSelection[0], m_pointSelection[1]);
 					if (info.type == ConnectionType::ArcLine)
 					{
-						ImGui::DragFloat("Arc Radius", &info.radius, 0.001f, -1.f, 1.f);
-						ImGui::Checkbox("Invert Arc", &info.invertArc);
-						int segCount = (int)info.segmentCount;
-						if (ImGui::DragInt("SegmentCount", &segCount, 1, INT_MAX))
-						{
-							info.segmentCount = (uint32_t)xe::Math::Max(segCount, 1);
-						}
+						GUIArcRadius(m_pointSelection[0], m_pointSelection[1]);
+						GUIArcSegments(m_pointSelection[0], m_pointSelection[1]);
 					}
 				}
 			}
@@ -690,6 +685,64 @@ void Canvas::GUIConnectionType(uint32_t idA, uint32_t idB)
 	cmd.execute = [this, idA, idB, selection]() { m_connections[{idA, idB}].type = (ConnectionType)selection; };
 
 	App::Exec(cmd);
+}
+
+void Canvas::GUIArcRadius(uint32_t idA, uint32_t idB)
+{
+	ConnectionInfo& info = m_connections[{idA, idB}];
+	float val = info.radius;
+	ImGui::DragFloat("Arc Radius", &info.radius, 0.005f, -1.f, 1.f);
+	if (ImGui::IsItemActivated())
+	{
+		m_inspectorCommand = std::make_unique<xe::Command>();
+		m_inspectorCommand->revert = [this, val, &info]() { info.radius = val; };
+	}
+	if (ImGui::IsItemDeactivatedAfterEdit())
+	{
+		if (m_inspectorCommand == nullptr)
+		{
+			Message::ErrorNotice("Inspector command buffer instance not valid.");
+			return;
+		}
+		val = info.radius;
+		m_inspectorCommand->execute = [this, val, &info]() { info.radius = val; };
+		App::Exec(*m_inspectorCommand);
+		m_inspectorCommand = nullptr;
+	}
+	else if (ImGui::IsItemDeactivated())
+	{
+		m_inspectorCommand = nullptr;
+	}
+}
+
+void Canvas::GUIArcSegments(uint32_t idA, uint32_t idB)
+{
+	ConnectionInfo& info = m_connections[{idA, idB}];
+	int val = info.segmentCount;
+	ImGui::DragInt("Arc Segments", &info.segmentCount, 2, INT_MAX);
+	info.segmentCount = xe::Math::Max(info.segmentCount, 2);
+
+	if (ImGui::IsItemActivated())
+	{
+		m_inspectorCommand = std::make_unique<xe::Command>();
+		m_inspectorCommand->revert = [this, val, &info]() { info.segmentCount = val; };
+	}
+	if (ImGui::IsItemDeactivatedAfterEdit())
+	{
+		if (m_inspectorCommand == nullptr)
+		{
+			Message::ErrorNotice("Inspector command buffer instance not valid.");
+			return;
+		}
+		val = info.segmentCount;
+		m_inspectorCommand->execute = [this, val, &info]() { info.segmentCount = val; };
+		App::Exec(*m_inspectorCommand);
+		m_inspectorCommand = nullptr;
+	}
+	else if (ImGui::IsItemDeactivated())
+	{
+		m_inspectorCommand = nullptr;
+	}
 }
 
 void Canvas::DrawGrid(sf::RenderTarget& target)

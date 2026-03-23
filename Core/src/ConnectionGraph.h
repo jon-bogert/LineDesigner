@@ -15,7 +15,7 @@ struct ConnectionInfo
 	ConnectionType type = ConnectionType::Line;
 
 	float radius = 0.f;
-	uint32_t segmentCount = 32;
+	int segmentCount = 32;
 	bool invertArc = false;
 };
 
